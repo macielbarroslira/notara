@@ -1,0 +1,15 @@
+node_modules/
+.firebase/
+*.log
+web/dist/
+motor/lib/
+functions/
+.env*
+*.local
+seed-emulador.json
+.claude/
+**/.DS_Store
+# Nunca versionar chaves de conta de serviço
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+web/tsconfig.tsbuildinfo

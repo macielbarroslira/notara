@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// Regras do banco do Notara (projeto notara-monitor).
+// O "motor" (GitHub Actions) usa a conta de serviço e não passa por estas regras.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function textoOpcional(d, campo, max) {
+      return !(campo in d) || (d[campo] is string && d[campo].size() <= max);
+    }
+
+    function listaOpcional(d, campo) {
+      return !(campo in d) || (d[campo] is list && d[campo].size() <= 20);
+    }
+
+    function monitorValido(d) {
+      return d.nome is string && d.nome.size() > 0 && d.nome.size() <= 120
+        && d.url is string && d.url.size() <= 2048 && d.url.matches('^https?://.+')
+        && d.tipo in ['pagina', 'elemento', 'feed', 'json', 'uptime', 'pdf']
+        && d.intervaloMin is int && d.intervaloMin >= 5 && d.intervaloMin <= 10080
+        && d.ativo is bool
+        && listaOpcional(d, 'seletores') && listaOpcional(d, 'excluir')
+        && listaOpcional(d, 'ignorar') && listaOpcional(d, 'tags')
+        && textoOpcional(d, 'jsonPath', 300)
+        && (!('regras' in d) || (d.regras is map && d.regras.itens is list && d.regras.itens.size() <= 10))
+        && (!('acoes' in d) || d.acoes is map)
+        && (!('agenda' in d) || d.agenda is map)
+        && (!('aoErrar' in d) || (d.aoErrar is map
+              && (!('aposFalhas' in d.aoErrar) || (d.aoErrar.aposFalhas is int && d.aoErrar.aposFalhas >= 0 && d.aoErrar.aposFalhas <= 10))))
+        && (!('usarNavegador' in d) || d.usarNavegador is bool)
+        && (!('esperarMs' in d) || (d.esperarMs is int && d.esperarMs >= 0 && d.esperarMs <= 15000))
+        && (!('excluido' in d) || d.excluido is bool);
+    }
+
+    match /users/{uid} {
+      allow read, write: if logado(uid);
+
+      match /monitores/{monitorId} {
+        allow read: if logado(uid);
+        // Excluir = marcar "excluido"; o motor apaga o monitor e o histórico
+        allow delete: if false;
+        // Na criação, o app só pode agendar a 1ª verificação para "agora"
+        allow create: if logado(uid) && monitorValido(request.resource.data)
+          && request.resource.data.exec.keys().hasOnly(['status', 'proxima'])
+          && request.resource.data.exec.status == 'novo'
+          && request.resource.data.exec.proxima == request.time;
+        // Depois, "exec" (estado da verificação) só é gravado pelo motor
+        allow update: if logado(uid) && monitorValido(request.resource.data)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['exec']);
+
+        match /versoes/{versaoId} {
+          allow read: if logado(uid);
+        }
+
+        match /capturas/{versaoId} {
+          allow read: if logado(uid);
+        }
+      }
+
+      match /alteracoes/{alteracaoId} {
+        allow read, delete: if logado(uid);
+        allow update: if logado(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lida', 'feedback']);
+      }
+
+      // Pedidos para o motor: Testar, Escolher na página, Verificar agora
+      match /pedidos/{pedidoId} {
+        allow read, delete: if logado(uid);
+        allow create: if logado(uid)
+          && request.resource.data.keys().hasOnly(['tipo', 'dados', 'status', 'criadoEm'])
+          && request.resource.data.tipo in ['testar', 'seletor', 'verificar']
+          && request.resource.data.status == 'pendente'
+          && request.resource.data.criadoEm == request.time
+          && request.resource.data.dados is map;
+
+        match /anexos/{anexoId} {
+          allow read: if logado(uid);
+        }
+      }
+
+      match /dispositivos/{dispositivoId} {
+        allow read, delete: if logado(uid);
+        allow create, update: if logado(uid) && request.resource.data.token is string
+          && request.resource.data.token.size() < 4096;
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "notara-monitor",
+    "dados": "notara-monitor",
+    "site": "confra-cafe-vp"
+  },
+  "targets": {
+    "confra-cafe-vp": {
+      "hosting": {
+        "monitor": [
+          "notara"
+        ]
+      }
+    }
+  }
+}

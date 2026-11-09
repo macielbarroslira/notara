@@ -1,0 +1,119 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "monitores",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "ativo",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "exec.proxima",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "alteracoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monitorId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "alteracoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lida",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pedidos",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "versoes",
+      "fieldPath": "texto",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "alteracoes",
+      "fieldPath": "adicionado",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "alteracoes",
+      "fieldPath": "removido",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "capturas",
+      "fieldPath": "jpeg",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "monitores",
+      "fieldPath": "excluido",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pedidos",
+      "fieldPath": "criadoEm",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "anexos",
+      "fieldPath": "jpeg",
+      "indexes": []
+    }
+  ]
+}
