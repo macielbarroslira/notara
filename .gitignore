@@ -13,3 +13,4 @@ seed-emulador.json
 *serviceAccount*.json
 *-firebase-adminsdk-*.json
 web/tsconfig.tsbuildinfo
+.omc/
