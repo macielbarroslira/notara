@@ -1,0 +1,25 @@
+# O GitHub pausa agendamentos de repositórios sem atividade por 60 dias.
+# Este fluxo registra uma atividade por mês para o motor continuar rodando.
+name: Manter ativo
+
+on:
+  schedule:
+    - cron: "0 12 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  manter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Registrar atividade
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/ultima-atividade
+          git config user.name "notara-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/ultima-atividade
+          git commit -m "Manter o agendamento do motor ativo" || exit 0
+          git push
