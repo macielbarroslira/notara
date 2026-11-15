@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { executarMonitor } from "./check.js";
 import { db } from "./db.js";
-import { diagnosticarIa } from "./gemini.js";
+import { diagnosticarIa } from "./ia.js";
 import { fecharNavegador } from "./navegador.js";
 import { limparPedidosAntigos, pedidosPendentes, processarPedido } from "./pedidos.js";
 import { processarTelegram, publicarBot, telegramAtivo } from "./telegram.js";

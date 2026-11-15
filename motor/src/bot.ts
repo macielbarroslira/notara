@@ -3,7 +3,7 @@ import { executarMonitor } from "./check.js";
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { capturar } from "./extract.js";
 import { validarUrl } from "./fetcher.js";
-import { conversarComIa, iaAtiva, transcreverAudio } from "./gemini.js";
+import { conversarComIa, iaAtiva, transcreverAudio } from "./ia.js";
 import { enviarPush } from "./notify.js";
 import { baixarArquivo, enviarTexto, indicarDigitando } from "./telegram.js";
 import type { Monitor, TipoMonitor } from "./types.js";
