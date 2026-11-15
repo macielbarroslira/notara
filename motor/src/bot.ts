@@ -229,6 +229,12 @@ export async function responderMensagem(chatId: number, texto: string) {
     await enviarTexto(chatId, `${AJUDA}\n\n(A conversa livre com IA ainda não foi ligada no motor.)`);
     return;
   }
+  // "digitando…" some após ~5 s no Telegram: renova enquanto a IA pensa
   await indicarDigitando(chatId);
-  await enviarTexto(chatId, await conversarComIa(uid, chatId, texto));
+  const digitando = setInterval(() => void indicarDigitando(chatId), 4_500);
+  try {
+    await enviarTexto(chatId, await conversarComIa(uid, chatId, texto));
+  } finally {
+    clearInterval(digitando);
+  }
 }

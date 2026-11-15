@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { executarMonitor } from "./check.js";
 import { db } from "./db.js";
+import { diagnosticarIa } from "./gemini.js";
 import { fecharNavegador } from "./navegador.js";
 import { limparPedidosAntigos, pedidosPendentes, processarPedido } from "./pedidos.js";
 import { processarTelegram, publicarBot, telegramAtivo } from "./telegram.js";
@@ -107,6 +108,7 @@ async function main() {
   const fim = Date.now() + DURACAO_MS;
   console.log(`[${hora()}] Motor do Notara iniciado (atende pedidos por ${Math.round(DURACAO_MS / 60_000)} min)`);
   await publicarBot().catch((e) => console.warn("Telegram: ", String(e)));
+  await diagnosticarIa();
   const mensagensTelegram = (esperaSeg = 0) =>
     processarTelegram(esperaSeg).catch(async (e) => (console.warn("Telegram: ", String(e)), await dormir(2_000), 0));
   await mensagensTelegram();

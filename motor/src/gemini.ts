@@ -10,6 +10,9 @@ const CHAVE = process.env.GEMINI_API_KEY?.trim();
 const MODELO = process.env.GEMINI_MODELO?.trim() || "gemini-flash-latest";
 const MAX_HISTORICO = 16;
 const MAX_PASSOS = 6;
+const TEMPO_MS = 45_000;
+/** Pouco raciocínio = resposta rápida. Se o modelo não aceitar, desliga sozinho. */
+let pensamento: Record<string, unknown> | null = { thinkingConfig: { thinkingBudget: 512 } };
 
 export const iaAtiva = () => Boolean(CHAVE);
 
@@ -119,23 +122,70 @@ async function executar(uid: string, chatId: number, nome: string, a: Record<str
   }
 }
 
-async function gerar(conteudos: Conteudo[]) {
+async function gerar(conteudos: Conteudo[], tentativa = 0): Promise<Conteudo> {
+  let r;
+  try {
+    r = await chamarGemini(conteudos);
+  } catch (e) {
+    if (tentativa === 0 && (e as Error).name === "TimeoutError") return gerar(conteudos, 1);
+    throw e;
+  }
+  const j = r.j;
+  if (r.status === 400 && pensamento && /thinking/i.test(j.error?.message ?? "")) {
+    console.warn("Gemini: modelo não aceita thinkingConfig; seguindo sem.");
+    pensamento = null;
+    return gerar(conteudos, tentativa);
+  }
+  if (r.status !== 200 || j.error) {
+    if (r.status === 429) throw new Error("limite gratuito da IA atingido por agora");
+    throw new Error(j.error?.message ?? `HTTP ${r.status}`);
+  }
+  return j.candidates?.[0]?.content ?? { role: "model" as const, parts: [] };
+}
+
+type RespostaGemini = {
+  candidates?: Array<{ content?: Conteudo; finishReason?: string }>;
+  error?: { code: number; message: string; status?: string };
+};
+
+async function chamarGemini(conteudos: Conteudo[], comFerramentas = true) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": CHAVE! },
-    body: JSON.stringify({ systemInstruction: { parts: [{ text: instrucoes() }] }, contents: conteudos, tools: FERRAMENTAS }),
-    signal: AbortSignal.timeout(60_000),
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: instrucoes() }] },
+      contents: conteudos,
+      ...(comFerramentas ? { tools: FERRAMENTAS } : {}),
+      ...(pensamento ? { generationConfig: pensamento } : {}),
+    }),
+    signal: AbortSignal.timeout(TEMPO_MS),
   });
-  const j = (await r.json()) as {
-    candidates?: Array<{ content?: Conteudo; finishReason?: string }>;
-    error?: { code: number; message: string; status?: string };
-  };
-  if (!r.ok || j.error) {
-    const e = j.error;
-    if (r.status === 429) throw new Error("limite gratuito da IA atingido por agora");
-    throw new Error(e?.message ?? `HTTP ${r.status}`);
+  return { status: r.status, j: (await r.json()) as RespostaGemini };
+}
+
+/** Autoteste no início da rodada: mostra no log qual modelo responde e em quanto tempo. */
+export async function diagnosticarIa() {
+  if (!CHAVE) return;
+  try {
+    const lista = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+      headers: { "x-goog-api-key": CHAVE },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const modelos = ((await lista.json()) as { models?: Array<{ name: string }> }).models ?? [];
+    console.log(`IA: ${modelos.length} modelos; flash: ${modelos.map((m) => m.name.replace("models/", "")).filter((n) => n.includes("flash")).slice(0, 12).join(", ")}`);
+    for (const ferramentas of [false, true]) {
+      const inicio = Date.now();
+      const r = await chamarGemini([{ role: "user", parts: [{ text: "Responda só: ok" }] }], ferramentas);
+      if (r.status === 400 && pensamento && /thinking/i.test(r.j.error?.message ?? "")) {
+        pensamento = null;
+        console.warn("IA: modelo não aceita thinkingConfig; seguindo sem.");
+        continue;
+      }
+      console.log(`IA (${MODELO}, ferramentas: ${ferramentas}): HTTP ${r.status} em ${Date.now() - inicio} ms${r.j.error ? ` — ${r.j.error.message.slice(0, 200)}` : ""}`);
+    }
+  } catch (e) {
+    console.warn("IA: autoteste falhou —", String(e));
   }
-  return j.candidates?.[0]?.content ?? { role: "model" as const, parts: [] };
 }
 
 const limpar = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "").trim();
