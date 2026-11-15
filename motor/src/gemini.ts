@@ -196,6 +196,24 @@ export async function diagnosticarIa() {
   console.warn("IA: nenhum modelo respondeu; a conversa vai avisar o erro.");
 }
 
+/** Transcreve uma mensagem de voz (o Gemini entende áudio direto). */
+export async function transcreverAudio(audio: { dados: string; mime: string }): Promise<string> {
+  const r = await chamarGemini(
+    [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: audio.mime, data: audio.dados } },
+          { text: "Transcreva fielmente esta mensagem de voz em português. Responda só com o texto falado, sem comentários. Se não houver fala, responda: (sem fala)" },
+        ],
+      },
+    ],
+    false,
+  );
+  if (r.status !== 200 || r.j.error) throw new Error(r.j.error?.message ?? `HTTP ${r.status}`);
+  return (r.j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+}
+
 const limpar = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "").trim();
 
 /** Uma rodada de conversa: lembra as últimas mensagens e deixa a IA usar as ferramentas. */

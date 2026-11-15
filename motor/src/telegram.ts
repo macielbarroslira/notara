@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { fetch } from "undici";
-import { responderMensagem } from "./bot.js";
+import { responderAudio, responderMensagem } from "./bot.js";
 import { db } from "./db.js";
 
 /**
@@ -59,7 +59,35 @@ export async function publicarBot() {
 
 interface Atualizacao {
   update_id: number;
-  message?: { chat: { id: number }; text?: string; from?: { first_name?: string } };
+  message?: {
+    chat: { id: number };
+    text?: string;
+    from?: { first_name?: string };
+    voice?: ArquivoTelegram;
+    audio?: ArquivoTelegram;
+  };
+}
+
+interface ArquivoTelegram {
+  file_id: string;
+  duration?: number;
+  mime_type?: string;
+  file_size?: number;
+}
+
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+/** Baixa um arquivo enviado ao bot (ex.: mensagem de voz). */
+export async function baixarArquivo(a: ArquivoTelegram) {
+  if ((a.file_size ?? 0) > MAX_AUDIO_BYTES) throw new Error("áudio grande demais (máx. 10 MB)");
+  const info = await chamar<{ file_path?: string }>("getFile", { file_id: a.file_id });
+  if (!info.file_path) throw new Error("o Telegram não liberou o arquivo");
+  const r = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${info.file_path}`, { signal: AbortSignal.timeout(30_000) });
+  if (!r.ok) throw new Error(`download do áudio: HTTP ${r.status}`);
+  const bytes = Buffer.from(await r.arrayBuffer());
+  if (bytes.length > MAX_AUDIO_BYTES) throw new Error("áudio grande demais (máx. 10 MB)");
+  const mime = a.mime_type || (info.file_path.endsWith(".oga") || info.file_path.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg");
+  return { dados: bytes.toString("base64"), mime };
 }
 
 /**
@@ -102,6 +130,8 @@ export async function processarTelegram(esperaSeg = 0) {
         await enviarTelegram(chatId, "Desconectado", "Você não vai mais receber alertas aqui.", "https://notara.web.app/configuracoes");
       } else if (texto) {
         await responderMensagem(chatId, texto);
+      } else if (msg.voice || msg.audio) {
+        await responderAudio(chatId, (msg.voice ?? msg.audio)!);
       }
     } catch (e) {
       console.warn("Falha ao processar mensagem do Telegram", String(e));

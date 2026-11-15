@@ -3,9 +3,9 @@ import { executarMonitor } from "./check.js";
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { capturar } from "./extract.js";
 import { validarUrl } from "./fetcher.js";
-import { conversarComIa, iaAtiva } from "./gemini.js";
+import { conversarComIa, iaAtiva, transcreverAudio } from "./gemini.js";
 import { enviarPush } from "./notify.js";
-import { enviarTexto, indicarDigitando } from "./telegram.js";
+import { baixarArquivo, enviarTexto, indicarDigitando } from "./telegram.js";
 import type { Monitor, TipoMonitor } from "./types.js";
 
 /**
@@ -176,7 +176,7 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
     case "ajuda":
     case "help":
     case "start":
-      return `${AJUDA}${iaAtiva() ? "\n\nOu escreva normalmente — ex.: “o que mudou hoje?”, “vigie https://… e me avise quando aparecer Analista”." : ""}`;
+      return `${AJUDA}${iaAtiva() ? "\n\nOu escreva (ou mande um áudio) normalmente — ex.: “o que mudou hoje?”, “vigie https://… e me avise quando aparecer Analista”." : ""}`;
     case "lista":
     case "monitores": {
       const l = await listarMonitores(uid);
@@ -211,8 +211,35 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
   }
 }
 
+/** Mensagem de voz: transcreve com a IA e responde como se fosse texto. */
+export async function responderAudio(chatId: number, arquivo: Parameters<typeof baixarArquivo>[0]) {
+  const usuarios = await db.collection("users").where("telegramChatId", "==", chatId).limit(1).get();
+  if (usuarios.empty) {
+    await enviarTexto(chatId, "Este Telegram ainda não está ligado a uma conta. Abra notara.web.app › Ajustes › Conectar Telegram.");
+    return;
+  }
+  if (!iaAtiva()) {
+    await enviarTexto(chatId, "Para entender áudio, a IA precisa estar ligada no motor. Por enquanto, mande por escrito.");
+    return;
+  }
+  await indicarDigitando(chatId);
+  let transcricao: string;
+  try {
+    transcricao = await transcreverAudio(await baixarArquivo(arquivo));
+  } catch (e) {
+    console.warn("Áudio:", String(e));
+    await enviarTexto(chatId, `Não consegui entender o áudio (${(e as Error).message}). Pode mandar por escrito?`);
+    return;
+  }
+  if (!transcricao || /^\(sem fala\)$/i.test(transcricao)) {
+    await enviarTexto(chatId, "Não ouvi nenhuma fala nesse áudio. Pode repetir?");
+    return;
+  }
+  await responderMensagem(chatId, transcricao, `🎤 “${transcricao.slice(0, 300)}”\n\n`);
+}
+
 /** Responde uma mensagem de um chat já conectado a uma conta do Notara. */
-export async function responderMensagem(chatId: number, texto: string) {
+export async function responderMensagem(chatId: number, texto: string, prefixo = "") {
   const usuarios = await db.collection("users").where("telegramChatId", "==", chatId).limit(1).get();
   if (usuarios.empty) {
     await enviarTexto(chatId, "Este Telegram ainda não está ligado a uma conta. Abra notara.web.app › Ajustes › Conectar Telegram.");
@@ -222,7 +249,7 @@ export async function responderMensagem(chatId: number, texto: string) {
   const m = /^\/([a-zA-Z]+)(?:@\w+)?\s*([\s\S]*)$/.exec(texto);
   if (m) {
     const resposta = await comando(uid, chatId, m[1].toLowerCase(), m[2].trim());
-    await enviarTexto(chatId, resposta ?? `Não conheço esse comando.\n\n${AJUDA}`);
+    await enviarTexto(chatId, prefixo + (resposta ?? `Não conheço esse comando.\n\n${AJUDA}`));
     return;
   }
   if (!iaAtiva()) {
@@ -233,7 +260,7 @@ export async function responderMensagem(chatId: number, texto: string) {
   await indicarDigitando(chatId);
   const digitando = setInterval(() => void indicarDigitando(chatId), 4_500);
   try {
-    await enviarTexto(chatId, await conversarComIa(uid, chatId, texto));
+    await enviarTexto(chatId, prefixo + (await conversarComIa(uid, chatId, texto)));
   } finally {
     clearInterval(digitando);
   }
