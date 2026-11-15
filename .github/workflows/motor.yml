@@ -1,6 +1,7 @@
 # Motor do Notara: verifica os sites e atende os pedidos do app (Testar, Escolher na página, Verificar agora).
-# Cada rodada fica ~55 min ligada (atende o app e responde o Telegram na hora). O agendamento
-# a cada 10 min deixa a próxima rodada na fila, então o motor fica praticamente sempre ligado.
+# Cada rodada fica ~55 min ligada (atende o app e responde o Telegram na hora) e, ao terminar,
+# dispara a próxima (corrente). O agendamento a cada 10 min é só reserva: o GitHub costuma atrasá-lo
+# por horas. Para desligar a corrente, cancele a rodada em andamento (rodada cancelada não dispara outra).
 name: Motor
 
 on:
@@ -15,6 +16,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: write # para disparar a próxima rodada
 
 jobs:
   motor:
@@ -50,3 +52,12 @@ jobs:
           CHROME_PATH: /usr/bin/google-chrome
           NOTARA_DURACAO_MS: "3300000"
         run: node lib/motor.js
+
+      - name: Disparar a próxima rodada
+        if: ${{ success() || failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Se a rodada falhou logo, espera um pouco para não entrar em ciclo rápido de erro
+          if [ "${{ job.status }}" != "success" ]; then sleep 120; fi
+          gh workflow run motor.yml --ref "${{ github.ref_name }}" -R "${{ github.repository }}"
