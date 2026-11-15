@@ -1,5 +1,6 @@
 # Motor do Notara: verifica os sites e atende os pedidos do app (Testar, Escolher na página, Verificar agora).
-# Roda a cada ~10 minutos (o GitHub pode atrasar alguns minutos) e fica ~5 min atendendo a fila.
+# Cada rodada fica ~55 min ligada (atende o app e responde o Telegram na hora). O agendamento
+# a cada 10 min deixa a próxima rodada na fila, então o motor fica praticamente sempre ligado.
 name: Motor
 
 on:
@@ -7,7 +8,7 @@ on:
     - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
-# Uma rodada por vez; se a anterior ainda estiver rodando, a nova espera.
+# Uma rodada por vez; a próxima espera na fila (só uma fica esperando).
 concurrency:
   group: motor
   cancel-in-progress: false
@@ -18,7 +19,7 @@ permissions:
 jobs:
   motor:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +43,8 @@ jobs:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           SMTP_URL: ${{ secrets.SMTP_URL }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EMAIL_REMETENTE: "Notara <no-reply@notara.web.app>"
           CHROME_PATH: /usr/bin/google-chrome
-          NOTARA_DURACAO_MS: "300000"
+          NOTARA_DURACAO_MS: "3300000"
         run: node lib/motor.js
