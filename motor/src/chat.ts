@@ -29,10 +29,15 @@ export function ouvirChat() {
 }
 
 export const chatPendente = () => temChat;
+/** Reserva: confere a fila mesmo sem aviso do ouvinte (ex.: ouvinte caiu enquanto o índice era criado). */
+export const conferirChat = () => {
+  temChat = true;
+};
 
 export async function atenderChat() {
   temChat = false;
-  const snap = await db.collectionGroup("chat").where("status", "==", "pendente").orderBy("criadoEm").limit(10).get();
+  const snap = await db
+    .collectionGroup("chat").where("status", "==", "pendente").orderBy("criadoEm").limit(10).get();
   for (const d of snap.docs) {
     const uid = d.ref.parent.parent!.id;
     // Reserva a mensagem (outra rodada do motor não responde em dobro)

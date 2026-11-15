@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { atenderChat, chatPendente, ouvirChat } from "./chat.js";
+import { atenderChat, chatPendente, conferirChat, ouvirChat } from "./chat.js";
 import { executarMonitor } from "./check.js";
 import { db } from "./db.js";
 import { diagnosticarIa } from "./ia.js";
@@ -127,7 +127,12 @@ async function main() {
     if (chatPendente()) await atenderChat().catch((e) => console.warn("Chat:", String(e)));
     const n = temPedido ? await atenderPedidos() : 0;
     if (n) console.log(`[${hora()}] Pedidos atendidos: ${n}`);
-    if (++voltas % 12 === 0) await verificarVencidos(); // ~1 min
+    if (++voltas % 12 === 0) {
+      await verificarVencidos(); // ~1 min
+      // Reserva caso um ouvinte tenha caído: confere as filas uma vez por minuto
+      temPedido = true;
+      conferirChat();
+    }
   }
   pararDeOuvir();
   pararChat();
