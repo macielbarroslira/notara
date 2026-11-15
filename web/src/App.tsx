@@ -4,6 +4,7 @@ import { Layout } from "./components/Layout";
 import { Carregando } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/dados";
 import { AlteracaoDetalhe } from "./pages/AlteracaoDetalhe";
+import { Assistente } from "./pages/Assistente";
 import { Alteracoes } from "./pages/Alteracoes";
 import { Configuracoes } from "./pages/Configuracoes";
 import { Landing } from "./pages/Landing";
@@ -50,6 +51,7 @@ export function App() {
             <Route path="monitores/:id/editar" element={<MonitorForm key="editar" />} />
             <Route path="alteracoes" element={<Alteracoes />} />
             <Route path="alteracoes/:id" element={<AlteracaoDetalhe />} />
+            <Route path="assistente" element={<Assistente />} />
             <Route path="configuracoes" element={<Configuracoes />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

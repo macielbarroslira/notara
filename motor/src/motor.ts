@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { atenderChat, chatPendente, ouvirChat } from "./chat.js";
 import { executarMonitor } from "./check.js";
 import { db } from "./db.js";
 import { diagnosticarIa } from "./ia.js";
@@ -118,15 +119,18 @@ async function main() {
   // Até o fim da janela: atende pedidos do app e verifica quem vencer nesse meio-tempo
   let voltas = 0;
   const pararDeOuvir = ouvirPedidos();
+  const pararChat = ouvirChat();
   while (Date.now() < fim) {
     // Com Telegram: espera mensagens por até 4 s (responde na hora); sem: só aguarda
     if (telegramAtivo()) await mensagensTelegram(Math.max(1, Math.round(ESPERA_ENTRE_BUSCAS_MS / 1250)));
     else await dormir(ESPERA_ENTRE_BUSCAS_MS);
+    if (chatPendente()) await atenderChat().catch((e) => console.warn("Chat:", String(e)));
     const n = temPedido ? await atenderPedidos() : 0;
     if (n) console.log(`[${hora()}] Pedidos atendidos: ${n}`);
     if (++voltas % 12 === 0) await verificarVencidos(); // ~1 min
   }
   pararDeOuvir();
+  pararChat();
   console.log(`Pedidos antigos apagados: ${await limparPedidosAntigos()}`);
   await fecharNavegador();
   console.log(`[${hora()}] Rodada concluída`);

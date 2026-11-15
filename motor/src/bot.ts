@@ -3,7 +3,7 @@ import { executarMonitor } from "./check.js";
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { capturar } from "./extract.js";
 import { validarUrl } from "./fetcher.js";
-import { catalogoIa, conversarComIa, iaAtiva, transcreverAudio, type PreferenciaIa } from "./ia.js";
+import { catalogoIa, comAssinatura, conversarComIa, esquecerConversa, iaAtiva, transcreverAudio, type PreferenciaIa } from "./ia.js";
 import { enviarPush } from "./notify.js";
 import { baixarArquivo, enviarComBotoes, enviarTexto, indicarDigitando, responderToque, type Botoes } from "./telegram.js";
 import type { Monitor, TipoMonitor } from "./types.js";
@@ -144,7 +144,7 @@ export async function lerPagina(url: string, tipo?: string) {
   return { titulo: r.titulo, status: r.status, texto: r.texto.slice(0, 6000), cortado: r.texto.length > 6000 };
 }
 
-export async function alertaDeTeste(uid: string, chatId: number) {
+export async function alertaDeTeste(uid: string, chatId: number | null) {
   const aviso = {
     titulo: "🔔 Alerta de teste do Notara",
     corpo: "Se você recebeu isto, os alertas estão funcionando.",
@@ -152,9 +152,10 @@ export async function alertaDeTeste(uid: string, chatId: number) {
   };
   const [push] = await Promise.allSettled([enviarPush(uid, aviso)]);
   const aparelhos = (await db.collection(`users/${uid}/dispositivos`).count().get()).data().count;
-  await enviarTexto(chatId, `${aviso.titulo}\n${aviso.corpo}`);
+  const chat = chatId ?? ((await db.doc(`users/${uid}`).get()).get("telegramChatId") as number | undefined);
+  if (chat) await enviarTexto(chat, `${aviso.titulo}\n${aviso.corpo}`);
   return {
-    telegram: "enviado",
+    telegram: chat ? "enviado" : "Telegram não conectado",
     push: push.status === "rejected" ? `falhou (${String(push.reason).slice(0, 120)})` : aparelhos ? `enviado para ${aparelhos} aparelho(s)` : "nenhum aparelho com notificações ativadas",
   };
 }
@@ -168,6 +169,7 @@ const AJUDA = `Comandos do Notara:
 /pausar <nome> e /retomar <nome>
 /teste — envia um alerta de teste (Telegram e celular)
 /modelo — escolhe qual IA responde (Gemini, Groq, OpenCode)
+/limpar — começa uma conversa nova com a IA (esquece o assunto anterior)
 /parar — desconecta este Telegram`;
 
 const ICONE: Record<string, string> = { ok: "🟢", erro: "🔴", novo: "⚪", verificando: "🔄" };
@@ -203,6 +205,10 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
       const r = await pausarOuRetomar(uid, arg, cmd === "retomar");
       return "erro" in r ? r.erro! : `${r.ativo ? "▶️ Retomado" : "⏸ Pausado"}: ${r.monitor}`;
     }
+    case "limpar":
+    case "nova":
+      await esquecerConversa(uid);
+      return "🧹 Conversa nova. Pode falar!";
     case "modelo":
     case "modelos":
     case "ia":
@@ -332,7 +338,7 @@ export async function responderMensagem(chatId: number, texto: string, prefixo =
   const digitando = setInterval(() => void indicarDigitando(chatId), 4_500);
   try {
     const pref = usuarios.docs[0].get("ia") as PreferenciaIa | undefined;
-    await enviarTexto(chatId, prefixo + (await conversarComIa(uid, chatId, texto, pref)));
+    await enviarTexto(chatId, prefixo + comAssinatura(await conversarComIa(uid, chatId, texto, pref)));
   } finally {
     clearInterval(digitando);
   }

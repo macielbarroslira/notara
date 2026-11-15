@@ -55,6 +55,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "chat",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "criadoEm",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
@@ -113,6 +127,11 @@
     {
       "collectionGroup": "anexos",
       "fieldPath": "jpeg",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "chat",
+      "fieldPath": "audio",
       "indexes": []
     }
   ]

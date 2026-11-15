@@ -11,6 +11,7 @@ const itens: { para: string; nome: string; icone: NomeIcone }[] = [
   { para: "/monitores", nome: "Monitores", icone: "monitores" },
   { para: "/concursos", nome: "Concursos", icone: "busca" },
   { para: "/alteracoes", nome: "Alterações", icone: "sino" },
+  { para: "/assistente", nome: "Assistente", icone: "chat" },
   { para: "/configuracoes", nome: "Ajustes", icone: "ajustes" },
 ];
 
@@ -99,7 +100,7 @@ export function Layout() {
       </main>
 
       {/* Abas inferiores no celular */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
         {[itens[0], itens[1]].map((i) => (
           <NavLink key={i.para} to={i.para} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${ativo(i.para) ? "text-ink" : "text-faint"}`}>
             <span className="relative">
@@ -119,7 +120,7 @@ export function Layout() {
           </span>
           Novo
         </Link>
-        {[itens[3], itens[4]].map((i) => (
+        {[itens[4], itens[3], itens[5]].map((i) => (
           <NavLink key={i.para} to={i.para} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${ativo(i.para) ? "text-ink" : "text-faint"}`}>
             <span className="relative">
               <Icone nome={i.icone} className="size-6" />
@@ -129,7 +130,7 @@ export function Layout() {
                 </span>
               )}
             </span>
-            {i.nome}
+            {i.para === "/assistente" ? "IA" : i.nome}
           </NavLink>
         ))}
       </nav>

@@ -93,6 +93,19 @@ service cloud.firestore {
         }
       }
 
+      // Chat com a IA (tela Assistente): o app grava a pergunta; o motor grava a resposta
+      match /chat/{mensagemId} {
+        allow read, delete: if logado(uid);
+        allow create: if logado(uid)
+          && request.resource.data.keys().hasOnly(['papel', 'texto', 'status', 'criadoEm', 'audio', 'audioMime'])
+          && request.resource.data.papel == 'usuario'
+          && request.resource.data.status == 'pendente'
+          && request.resource.data.criadoEm == request.time
+          && request.resource.data.texto is string && request.resource.data.texto.size() <= 4000
+          && (!('audio' in request.resource.data) || (request.resource.data.audio is string && request.resource.data.audio.size() <= 900000))
+          && (!('audioMime' in request.resource.data) || (request.resource.data.audioMime is string && request.resource.data.audioMime.size() <= 80));
+      }
+
       match /dispositivos/{dispositivoId} {
         allow read, delete: if logado(uid);
         allow create, update: if logado(uid) && request.resource.data.token is string

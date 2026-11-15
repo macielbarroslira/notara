@@ -79,7 +79,7 @@ Agora: ${agora} (horário de Brasília). App: ${URL_APP}.
 - Respostas em texto simples (sem markdown, sem asteriscos). Use no máximo alguns emojis. Inclua links quando ajudarem.`;
 }
 
-async function executar(uid: string, chatId: number, nome: string, a: Record<string, unknown>) {
+async function executar(uid: string, chatId: number | null, nome: string, a: Record<string, unknown>) {
   try {
     switch (nome) {
       case "listar_monitores":
@@ -305,7 +305,25 @@ function ordenar(pref?: PreferenciaIa) {
   return [...opcoes].sort((a, b) => peso(a) - peso(b));
 }
 
-export async function conversarComIa(uid: string, chatId: number, mensagem: string, pref?: PreferenciaIa): Promise<string> {
+export interface RespostaIa {
+  texto: string;
+  provedor?: string;
+  modelo?: string;
+  /** A IA escolhida estava no limite e outra respondeu. */
+  trocou?: boolean;
+}
+
+/** Apaga a memória da conversa (comando /limpar ou "Nova conversa" no app). */
+export const esquecerConversa = (uid: string) => db.doc(`users/${uid}/telegram/conversa`).delete();
+
+/** Formato do Telegram: resposta + quem respondeu. */
+export function comAssinatura(r: RespostaIa) {
+  if (!r.modelo) return r.texto;
+  return `${r.texto}\n\n🤖 ${r.provedor} · ${r.modelo}${r.trocou ? " (a escolhida estava no limite)" : ""}`;
+}
+
+/** Conversa (Telegram ou app): a mesma IA, as mesmas ferramentas e a mesma memória. chatId = Telegram, se houver. */
+export async function conversarComIa(uid: string, chatId: number | null, mensagem: string, pref?: PreferenciaIa): Promise<RespostaIa> {
   const memoria = db.doc(`users/${uid}/telegram/conversa`);
   const historico = ((await memoria.get()).get("mensagens") as Historico | undefined) ?? [];
   let agiu = false;
@@ -337,16 +355,18 @@ export async function conversarComIa(uid: string, chatId: number, mensagem: stri
     }
   }
   if (!resposta) {
-    return agiu
-      ? "Fiz o que você pediu, mas a IA caiu antes de responder. Confira com /lista ou /novidades."
-      : `Todas as IAs gratuitas estão no limite agora (${ultimoErro.slice(0, 120)}). Tente mais tarde — os comandos /lista, /novidades e /verificar continuam funcionando.`;
+    return {
+      texto: agiu
+        ? "Fiz o que você pediu, mas a IA caiu antes de responder. Confira a lista de monitores e as novidades."
+        : `Todas as IAs gratuitas estão no limite agora (${ultimoErro.slice(0, 120)}). Tente mais tarde — no Telegram, os comandos /lista, /novidades e /verificar continuam funcionando.`,
+    };
   }
   resposta = limpar(resposta);
   const novas = [...historico, { r: "user" as const, t: mensagem.slice(0, 2000) }, { r: "model" as const, t: resposta.slice(0, 2000) }];
   await memoria.set({ mensagens: novas.slice(-MAX_HISTORICO) });
   const escolhido = pref?.modelo || pref?.provedor;
-  const trocou = escolhido && quem && quem.modelo !== escolhido && quem.provedor !== escolhido;
-  return `${resposta}\n\n🤖 ${quem!.provedor} · ${quem!.modelo}${trocou ? " (a escolhida estava no limite)" : ""}`;
+  const trocou = Boolean(escolhido && quem && quem.modelo !== escolhido && quem.provedor !== escolhido);
+  return { texto: resposta, provedor: quem!.provedor, modelo: quem!.modelo, trocou };
 }
 
 // ---------- Áudio ----------
@@ -355,6 +375,14 @@ export async function conversarComIa(uid: string, chatId: number, mensagem: stri
 export async function transcreverAudio(audio: { dados: string; mime: string }): Promise<string> {
   const pedido = "Transcreva fielmente esta mensagem de voz em português. Responda só com o texto falado, sem comentários. Se não houver fala, responda: (sem fala)";
   let ultimoErro = "nenhuma IA de áudio configurada";
+  const geminiAceita = /ogg|mpeg|mp3|wav|aac|flac|aiff/.test(audio.mime);
+  if (CHAVE_GROQ && !geminiAceita) {
+    try {
+      return await whisper(audio);
+    } catch (e) {
+      ultimoErro = (e as Error).message;
+    }
+  }
   for (const o of opcoes.filter((x) => x.tipo === "gemini")) {
     if ((foraAte.get(o.modelo) ?? 0) > Date.now()) continue;
     try {
@@ -368,9 +396,15 @@ export async function transcreverAudio(audio: { dados: string; mime: string }): 
       if (e instanceof ErroDeModelo) foraAte.set(o.modelo, Date.now() + e.pausaMs);
     }
   }
-  if (CHAVE_GROQ) {
+  if (CHAVE_GROQ && geminiAceita) return whisper(audio);
+  throw new Error(ultimoErro);
+}
+
+/** Whisper grátis do Groq (aceita ogg, webm, m4a, mp3, wav). */
+async function whisper(audio: { dados: string; mime: string }) {
+  {
     const form = new FormData();
-    const ext = audio.mime.includes("ogg") ? "ogg" : audio.mime.includes("mp4") || audio.mime.includes("m4a") ? "m4a" : "mp3";
+    const ext = audio.mime.includes("ogg") ? "ogg" : audio.mime.includes("webm") ? "webm" : audio.mime.includes("mp4") || audio.mime.includes("m4a") ? "m4a" : audio.mime.includes("wav") ? "wav" : "mp3";
     form.append("file", new Blob([Buffer.from(audio.dados, "base64")], { type: audio.mime }), `audio.${ext}`);
     form.append("model", "whisper-large-v3-turbo");
     form.append("language", "pt");
@@ -382,9 +416,8 @@ export async function transcreverAudio(audio: { dados: string; mime: string }): 
     });
     const j = (await r.json()) as { text?: string; error?: { message?: string } };
     if (r.ok && j.text) return j.text.trim();
-    ultimoErro = j.error?.message ?? `HTTP ${r.status}`;
+    throw new Error(j.error?.message ?? `HTTP ${r.status}`);
   }
-  throw new Error(ultimoErro);
 }
 
 // ---------- Início da rodada ----------
@@ -429,5 +462,10 @@ export async function diagnosticarIa() {
     }
   }
   opcoes = montarOpcoes(gemini, opencode);
+  // O app lê esta lista para montar o seletor de modelo
+  await db
+    .doc("config/publica")
+    .set({ iaCatalogo: catalogoIa().map((c) => ({ provedor: c.provedor, modelos: c.modelos.map((m) => m.modelo) })) }, { merge: true })
+    .catch((e) => console.warn("IA: não publiquei o catálogo —", String(e)));
   console.log(`IA: ordem de uso → ${opcoes.map((o) => `${o.provedor}:${o.modelo}`).join(", ")}`);
 }
