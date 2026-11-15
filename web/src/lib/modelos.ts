@@ -1,5 +1,5 @@
 import type { NomeIcone } from "../components/Icone";
-import type { MonitorDados } from "../types";
+import type { MonitorDados, TipoMonitor } from "../types";
 import { monitorVazio } from "./constantes";
 
 /** Modelos prontos: preenchem o formulário com o tipo, a frequência e as condições certas. */
@@ -97,13 +97,26 @@ export interface FonteConcursos {
   desc: string;
   url: string;
   tipo?: "agregador" | "banca";
+  /** Como ler a fonte (padrão: página inteira). */
+  leitura?: TipoMonitor;
+  /** Site oficial, para ícone e link (quando a URL lida é outra, ex.: um feed). */
+  site?: string;
 }
 
 export const FONTES_CONCURSOS: FonteConcursos[] = [
   { id: "pci", nome: "PCI Concursos", desc: "Agregador nacional, atualizado todos os dias", url: "https://www.pciconcursos.com.br/concursos/", tipo: "agregador" },
   { id: "cebraspe", nome: "Cebraspe", desc: "Concursos e seleções do Cebraspe", url: "https://www.cebraspe.org.br/concursos/", tipo: "banca" },
   { id: "fgv", nome: "FGV Conhecimento", desc: "Concursos organizados pela FGV", url: "https://conhecimento.fgv.br/concursos", tipo: "banca" },
-  { id: "cesgranrio", nome: "Cesgranrio", desc: "Concursos da Fundação Cesgranrio", url: "https://www.cesgranrio.org.br/concursos/", tipo: "banca" },
+  // O site da Cesgranrio bloqueia servidores (HTTP 403); seguimos as notícias sobre a banca.
+  {
+    id: "cesgranrio",
+    nome: "Cesgranrio",
+    desc: "Notícias sobre concursos da Cesgranrio",
+    url: "https://news.google.com/rss/search?q=%22Cesgranrio%22+concurso&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    leitura: "feed",
+    site: "https://www.cesgranrio.org.br/concursos/",
+    tipo: "banca",
+  },
   { id: "fcc", nome: "FCC", desc: "Fundação Carlos Chagas — inscrições abertas", url: "https://www.concursosfcc.com.br/", tipo: "banca" },
   { id: "vunesp", nome: "Vunesp", desc: "Concursos da Vunesp", url: "https://www.vunesp.com.br/", tipo: "banca" },
   { id: "fundatec", nome: "Fundatec", desc: "Concursos abertos da Fundatec", url: "https://www.fundatec.org.br/portal/concursos/concursos_abertos.php", tipo: "banca" },
@@ -116,7 +129,7 @@ export function monitorDeFonte(f: FonteConcursos, filtro: string, email = ""): M
     ...base,
     nome: `Concursos novos · ${f.nome}`,
     url: f.url,
-    tipo: "pagina",
+    tipo: f.leitura ?? "pagina",
     intervaloMin: 60,
     regras: regras([{ tipo: "nunca_visto", valor: filtro.trim() }]),
     tags: ["descobrir-concursos"],

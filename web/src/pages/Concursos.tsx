@@ -82,7 +82,7 @@ export function Concursos() {
             <div key={f.id} className="flex flex-col rounded-card bg-card p-5 shadow-card">
               <div className="flex items-start gap-3">
                 <img
-                  src={`https://www.google.com/s2/favicons?domain=${dominio(f.url)}&sz=64`}
+                  src={`https://www.google.com/s2/favicons?domain=${dominio(f.site ?? f.url)}&sz=64`}
                   alt=""
                   className="size-9 shrink-0 rounded-sm bg-panel"
                   loading="lazy"
@@ -93,8 +93,8 @@ export function Concursos() {
                     {f.tipo === "agregador" && <Selo cor="accent">Agregador</Selo>}
                   </div>
                   <p className="mt-0.5 text-sm text-muted">{f.desc}</p>
-                  <a href={f.url} target="_blank" rel="noreferrer noopener" className="mt-1 inline-block truncate text-xs text-faint hover:text-ink">
-                    {dominio(f.url)}
+                  <a href={f.site ?? f.url} target="_blank" rel="noreferrer noopener" className="mt-1 inline-block truncate text-xs text-faint hover:text-ink">
+                    {dominio(f.site ?? f.url)}
                   </a>
                 </div>
               </div>

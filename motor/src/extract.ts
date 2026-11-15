@@ -164,6 +164,9 @@ export function lerCaminho(obj: unknown, caminho?: string): unknown {
 
 async function viaNavegador(cfg: ConfigCaptura, opts: { capturarTela?: boolean }): Promise<ResultadoCaptura> {
   const r = await renderizar(cfg.url, { esperarMs: cfg.esperarMs, capturarTela: opts.capturarTela });
+  if (r.status === 401 || r.status === 403) {
+    throw new ErroCaptura(`O site bloqueou o acesso automático (HTTP ${r.status}). Alguns sites recusam servidores; tente outra página ou um feed.`);
+  }
   if (r.status >= 400) throw new ErroCaptura(`O site respondeu HTTP ${r.status}`);
   const { texto, titulo } = extrairHtml(r.html, cfg);
   return { texto, titulo: titulo ?? r.titulo, status: r.status, screenshot: r.screenshot, usouNavegador: true };
