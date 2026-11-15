@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { fetch } from "undici";
-import { responderAudio, responderMensagem } from "./bot.js";
+import { responderAudio, responderBotao, responderMensagem } from "./bot.js";
 import { db } from "./db.js";
 
 /**
@@ -66,7 +66,25 @@ interface Atualizacao {
     voice?: ArquivoTelegram;
     audio?: ArquivoTelegram;
   };
+  callback_query?: { id: string; data?: string; message?: { chat: { id: number }; message_id: number } };
 }
+
+export type Botoes = Array<Array<{ text: string; callback_data: string }>>;
+
+/** Mensagem com botões (ou edita a mensagem dos botões, para o menu não se repetir). */
+export async function enviarComBotoes(chatId: number, texto: string, botoes: Botoes, editarId?: number) {
+  if (!API) return;
+  const corpo = { chat_id: chatId, text: texto, reply_markup: { inline_keyboard: botoes } };
+  if (editarId) {
+    await chamar("editMessageText", { ...corpo, message_id: editarId }).catch((e) => {
+      if (!/not modified/i.test(String(e))) throw e;
+    });
+  } else {
+    await chamar("sendMessage", corpo);
+  }
+}
+
+export const responderToque = (id: string, texto?: string) => chamar("answerCallbackQuery", { callback_query_id: id, text: texto }).catch(() => {});
 
 interface ArquivoTelegram {
   file_id: string;
@@ -101,7 +119,7 @@ export async function processarTelegram(esperaSeg = 0) {
   const offset = offsetAtual;
   const atualizacoes = await chamar<Atualizacao[]>(
     "getUpdates",
-    { offset, timeout: esperaSeg, allowed_updates: ["message"] },
+    { offset, timeout: esperaSeg, allowed_updates: ["message", "callback_query"] },
     (esperaSeg + 15) * 1000,
   );
   // Grava o avanço antes de responder: se algo travar, a mesma mensagem não é respondida em loop
@@ -110,6 +128,13 @@ export async function processarTelegram(esperaSeg = 0) {
     await CONFIG.set({ offset: offsetAtual }, { merge: true });
   }
   for (const u of atualizacoes) {
+    const toque = u.callback_query;
+    if (toque?.message && toque.data) {
+      await responderBotao(toque.message.chat.id, toque.message.message_id, toque.data, toque.id).catch((e) =>
+        console.warn("Falha ao responder botão do Telegram", String(e)),
+      );
+      continue;
+    }
     const msg = u.message;
     const texto = msg?.text?.trim() ?? "";
     if (!msg) continue;

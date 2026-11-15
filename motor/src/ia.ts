@@ -133,7 +133,7 @@ const GEMINI_PREFERIDOS = [
   "gemini-flash-latest",
 ];
 const GROQ_MODELOS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"];
-const OPENCODE_GRATIS = ["big-pickle", "deepseek-v4-flash-free", "mimo-v2.5-free", "nemotron-3-ultra-free"];
+const OPENCODE_GRATIS = ["deepseek-v4.1-flash-free", "glm-5.3-flash-free", "minimax-m3.1-flash-free"];
 
 let opcoes: Opcao[] = montarOpcoes(GEMINI_PREFERIDOS, OPENCODE_GRATIS);
 /** Modelo → até quando fica de fora (cota esgotada, travado ou inexistente). */
@@ -190,7 +190,7 @@ async function postar(url: string, cabecalhos: Record<string, string>, corpo: un
   }
   const erro = (j.error as { message?: string } | undefined)?.message ?? texto.slice(0, 200);
   if (r.status === 429) throw new ErroDeModelo(`cota esgotada: ${erro.slice(0, 160)}`, /per ?day|daily|PerDay/i.test(erro) ? 6 * 3600_000 : 2 * 60_000);
-  if (r.status === 404 || r.status === 403) throw new ErroDeModelo(`indisponível: ${erro.slice(0, 160)}`, 24 * 3600_000);
+  if (r.status === 404 || r.status === 403 || r.status === 401 || r.status === 402) throw new ErroDeModelo(`indisponível: ${erro.slice(0, 160)}`, 24 * 3600_000);
   if (r.status >= 500) throw new ErroDeModelo(`instável (HTTP ${r.status})`, 5 * 60_000);
   if (r.status !== 200) throw new Error(`HTTP ${r.status}: ${erro.slice(0, 200)}`);
   return j;
@@ -282,7 +282,30 @@ const limpar = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/
 /** Ferramentas que mudam algo: depois delas não trocamos de modelo (para não repetir a ação). */
 const COM_EFEITO = new Set(["criar_monitor", "pausar_ou_retomar", "verificar_agora", "enviar_alerta_teste"]);
 
-export async function conversarComIa(uid: string, chatId: number, mensagem: string): Promise<string> {
+/** Escolha do usuário no /modelo: um provedor inteiro ou um modelo específico (vazio = automático). */
+export interface PreferenciaIa {
+  provedor?: string | null;
+  modelo?: string | null;
+}
+
+/** Provedores e modelos disponíveis nesta rodada, com os que estão de fora (limite) marcados. */
+export function catalogoIa() {
+  const porProvedor = new Map<string, Array<{ modelo: string; fora: boolean }>>();
+  for (const o of opcoes) {
+    const lista = porProvedor.get(o.provedor) ?? [];
+    lista.push({ modelo: o.modelo, fora: (foraAte.get(o.modelo) ?? 0) > Date.now() });
+    porProvedor.set(o.provedor, lista);
+  }
+  return [...porProvedor].map(([provedor, modelos]) => ({ provedor, modelos }));
+}
+
+/** Ordem de tentativa: o modelo escolhido, depois o resto do provedor escolhido, depois os outros. */
+function ordenar(pref?: PreferenciaIa) {
+  const peso = (o: Opcao) => (pref?.modelo && o.modelo === pref.modelo ? 0 : pref?.provedor && o.provedor === pref.provedor ? 1 : 2);
+  return [...opcoes].sort((a, b) => peso(a) - peso(b));
+}
+
+export async function conversarComIa(uid: string, chatId: number, mensagem: string, pref?: PreferenciaIa): Promise<string> {
   const memoria = db.doc(`users/${uid}/telegram/conversa`);
   const historico = ((await memoria.get()).get("mensagens") as Historico | undefined) ?? [];
   let agiu = false;
@@ -294,13 +317,15 @@ export async function conversarComIa(uid: string, chatId: number, mensagem: stri
 
   let resposta = "";
   let ultimoErro = "nenhuma IA configurada";
-  for (const o of opcoes) {
+  let quem: Opcao | null = null;
+  for (const o of ordenar(pref)) {
     if ((foraAte.get(o.modelo) ?? 0) > Date.now()) continue;
     try {
       const fn = o.tipo === "gemini" ? conversarGemini : conversarOpenAI;
       resposta = await fn(o, historico, mensagem.slice(0, 4000), executarRegistrando);
       if (resposta) {
         console.log(`[IA] respondeu com ${o.provedor} ${o.modelo}`);
+        quem = o;
         break;
       }
       ultimoErro = `${o.modelo} não respondeu`;
@@ -319,7 +344,9 @@ export async function conversarComIa(uid: string, chatId: number, mensagem: stri
   resposta = limpar(resposta);
   const novas = [...historico, { r: "user" as const, t: mensagem.slice(0, 2000) }, { r: "model" as const, t: resposta.slice(0, 2000) }];
   await memoria.set({ mensagens: novas.slice(-MAX_HISTORICO) });
-  return resposta;
+  const escolhido = pref?.modelo || pref?.provedor;
+  const trocou = escolhido && quem && quem.modelo !== escolhido && quem.provedor !== escolhido;
+  return `${resposta}\n\n🤖 ${quem!.provedor} · ${quem!.modelo}${trocou ? " (a escolhida estava no limite)" : ""}`;
 }
 
 // ---------- Áudio ----------
@@ -386,7 +413,16 @@ export async function diagnosticarIa() {
         signal: AbortSignal.timeout(15_000),
       });
       const ids = (((await r.json()) as { data?: Array<{ id: string }> }).data ?? []).map((m) => m.id);
-      const gratis = ids.filter((id) => id.endsWith("-free") || id === "big-pickle");
+      // Só os grátis, preferindo os que não guardam nem treinam com as conversas;
+      // ficam de fora os que usam os dados para treino ou pedem para não enviar dados pessoais.
+      const preferencia = [/deepseek/, /glm/, /minimax/, /mimo/, /longcat/, /beam/, /flint/];
+      const evitar = /iceman|inkling|nemotron|big-pickle/;
+      const gratis = ids
+        .filter((id) => id.endsWith("-free") && !evitar.test(id))
+        .sort((a, b) => {
+          const p = (id: string) => (preferencia.findIndex((re) => re.test(id)) + 99) % 99;
+          return p(a) - p(b);
+        });
       if (gratis.length) opencode = gratis;
     } catch (e) {
       console.warn("IA: lista de modelos do OpenCode falhou —", String(e));

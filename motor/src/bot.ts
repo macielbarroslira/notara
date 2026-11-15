@@ -3,9 +3,9 @@ import { executarMonitor } from "./check.js";
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { capturar } from "./extract.js";
 import { validarUrl } from "./fetcher.js";
-import { conversarComIa, iaAtiva, transcreverAudio } from "./ia.js";
+import { catalogoIa, conversarComIa, iaAtiva, transcreverAudio, type PreferenciaIa } from "./ia.js";
 import { enviarPush } from "./notify.js";
-import { baixarArquivo, enviarTexto, indicarDigitando } from "./telegram.js";
+import { baixarArquivo, enviarComBotoes, enviarTexto, indicarDigitando, responderToque, type Botoes } from "./telegram.js";
 import type { Monitor, TipoMonitor } from "./types.js";
 
 /**
@@ -167,6 +167,7 @@ const AJUDA = `Comandos do Notara:
 /verificar <nome> — verifica um monitor agora
 /pausar <nome> e /retomar <nome>
 /teste — envia um alerta de teste (Telegram e celular)
+/modelo — escolhe qual IA responde (Gemini, Groq, OpenCode)
 /parar — desconecta este Telegram`;
 
 const ICONE: Record<string, string> = { ok: "🟢", erro: "🔴", novo: "⚪", verificando: "🔄" };
@@ -202,6 +203,11 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
       const r = await pausarOuRetomar(uid, arg, cmd === "retomar");
       return "erro" in r ? r.erro! : `${r.ativo ? "▶️ Retomado" : "⏸ Pausado"}: ${r.monitor}`;
     }
+    case "modelo":
+    case "modelos":
+    case "ia":
+      await menuModelos(uid, chatId);
+      return "";
     case "teste": {
       const r = await alertaDeTeste(uid, chatId);
       return `Push no celular/computador: ${r.push}.`;
@@ -209,6 +215,71 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
     default:
       return null;
   }
+}
+
+// ---------- Escolha da IA (/modelo) ----------
+
+const curto = (m: string) => m.replace(/^openai\//, "").replace(/-free$/, "");
+
+/** Menu de botões: Automático + provedores; ao tocar num provedor, mostra os modelos dele. */
+async function menuModelos(uid: string, chatId: number, editarId?: number, abrir?: string) {
+  const pref = ((await db.doc(`users/${uid}`).get()).get("ia") as PreferenciaIa | undefined) ?? {};
+  const catalogo = catalogoIa();
+  if (!catalogo.length) {
+    await enviarTexto(chatId, "Nenhuma IA configurada no motor.");
+    return;
+  }
+  const atual = pref.modelo ? `${pref.provedor} · ${curto(pref.modelo)}` : pref.provedor ? `${pref.provedor} (qualquer modelo)` : "Automático";
+  const marca = (ok: boolean) => (ok ? "✅ " : "");
+  let botoes: Botoes;
+  let texto = `🤖 IA atual: ${atual}\nSe a escolhida estiver no limite, eu passo para outra sozinho.`;
+  const grupo = abrir ? catalogo.find((c) => c.provedor === abrir) : undefined;
+  if (grupo) {
+    texto += `\n\nModelos do ${grupo.provedor} (⏳ = no limite agora):`;
+    botoes = [
+      [{ text: `${marca(pref.provedor === grupo.provedor && !pref.modelo)}Qualquer do ${grupo.provedor}`, callback_data: `ia:p:${grupo.provedor}` }],
+      ...grupo.modelos.map((m) => [
+        { text: `${marca(pref.modelo === m.modelo)}${m.fora ? "⏳ " : ""}${curto(m.modelo)}`.slice(0, 60), callback_data: `ia:m:${m.modelo}`.slice(0, 64) },
+      ]),
+      [{ text: "⬅️ Voltar", callback_data: "ia:menu" }],
+    ];
+  } else {
+    botoes = [
+      [{ text: `${marca(!pref.provedor && !pref.modelo)}⚡ Automático`, callback_data: "ia:auto" }],
+      catalogo.map((c) => ({
+        text: `${marca(pref.provedor === c.provedor)}${c.provedor}${c.modelos.every((m) => m.fora) ? " ⏳" : ""}`,
+        callback_data: `ia:abrir:${c.provedor}`,
+      })),
+    ];
+  }
+  await enviarComBotoes(chatId, texto, botoes, editarId);
+}
+
+/** Toque num botão do menu /modelo. */
+export async function responderBotao(chatId: number, mensagemId: number, dados: string, toqueId: string) {
+  const usuarios = await db.collection("users").where("telegramChatId", "==", chatId).limit(1).get();
+  if (usuarios.empty) return responderToque(toqueId, "Conecte este Telegram no app primeiro.");
+  const uid = usuarios.docs[0].id;
+  const ref = usuarios.docs[0].ref;
+  const [, acao, valor] = /^ia:(auto|menu|abrir|p|m):?(.*)$/.exec(dados) ?? [];
+  if (!acao) return responderToque(toqueId);
+  const catalogo = catalogoIa();
+  if (acao === "auto") {
+    await ref.update({ ia: { provedor: null, modelo: null } });
+    await responderToque(toqueId, "Automático");
+  } else if (acao === "p" && catalogo.some((c) => c.provedor === valor)) {
+    await ref.update({ ia: { provedor: valor, modelo: null } });
+    await responderToque(toqueId, valor);
+  } else if (acao === "m") {
+    const grupo = catalogo.find((c) => c.modelos.some((m) => m.modelo === valor));
+    if (!grupo) return responderToque(toqueId, "Modelo indisponível agora");
+    await ref.update({ ia: { provedor: grupo.provedor, modelo: valor } });
+    await responderToque(toqueId, curto(valor));
+  } else {
+    await responderToque(toqueId);
+  }
+  const abrir = acao === "abrir" ? valor : acao === "p" || acao === "m" ? (catalogo.find((c) => c.provedor === valor || c.modelos.some((m) => m.modelo === valor))?.provedor) : undefined;
+  await menuModelos(uid, chatId, mensagemId, abrir);
 }
 
 /** Mensagem de voz: transcreve com a IA e responde como se fosse texto. */
@@ -249,7 +320,7 @@ export async function responderMensagem(chatId: number, texto: string, prefixo =
   const m = /^\/([a-zA-Z]+)(?:@\w+)?\s*([\s\S]*)$/.exec(texto);
   if (m) {
     const resposta = await comando(uid, chatId, m[1].toLowerCase(), m[2].trim());
-    await enviarTexto(chatId, prefixo + (resposta ?? `Não conheço esse comando.\n\n${AJUDA}`));
+    if (resposta !== "") await enviarTexto(chatId, prefixo + (resposta ?? `Não conheço esse comando.\n\n${AJUDA}`));
     return;
   }
   if (!iaAtiva()) {
@@ -260,7 +331,8 @@ export async function responderMensagem(chatId: number, texto: string, prefixo =
   await indicarDigitando(chatId);
   const digitando = setInterval(() => void indicarDigitando(chatId), 4_500);
   try {
-    await enviarTexto(chatId, prefixo + (await conversarComIa(uid, chatId, texto)));
+    const pref = usuarios.docs[0].get("ia") as PreferenciaIa | undefined;
+    await enviarTexto(chatId, prefixo + (await conversarComIa(uid, chatId, texto, pref)));
   } finally {
     clearInterval(digitando);
   }
