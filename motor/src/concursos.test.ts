@@ -101,7 +101,7 @@ test("ficha: extrai cronograma, taxa, salário, banca, regime, validade e cargos
     <p>A Prefeitura de Exemplo abriu concurso. Segundo o edital, as oportunidades são para os cargos de:</p>
     <ul><li>Enfermeiro (24 vagas)</li><li>Analista - Área: TI (4 vagas imediatas + 9 CR)</li><li>Professor (CR)</li></ul>
     <p>A jornada é de 30 horas semanais para Enfermeiro e de 40 horas semanais para os demais. As remunerações variam de R$ 2.500,00 a R$ 7.950,00. Os benefícios previstos são auxílio-alimentação de R$ 600,00 e vale-transporte.</p>
-    <p>As inscrições serão realizadas pelo site www.vunesp.com.br, das 10h do dia 10 de novembro de 2026 até às 23h59 de 10 de dezembro de 2026. A taxa é de R$ 80,00 para nível médio e de R$ 120,00 para nível superior, com pagamento até 11 de dezembro de 2026. Candidatos do CadÚnico poderão solicitar isenção nos dias 10 e 11 de novembro de 2026.</p>
+    <p>As inscrições serão realizadas pelo site www.vunesp.com.br, das 10h do dia 10 de novembro de 2026 até às 23h59 de 10 de dezembro de 2026. As taxas são de R$ 80,00 para nível médio e de R$ 120,00 para nível superior, com pagamento até 11 de dezembro de 2026. Candidatos do CadÚnico poderão solicitar isenção nos dias 10 e 11 de novembro de 2026.</p>
     <p>A prova objetiva está prevista para o dia 17 de janeiro de 2027. O teste de aptidão física está previsto para 21 de fevereiro de 2027. O regime será estatutário. O concurso terá validade de dois anos, podendo ser prorrogado por igual período.</p>
     <p>Dê o play e acompanhe esta notícia no formato podcast.</p></article>`;
   const f = lerFichaPci(html);

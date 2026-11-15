@@ -8,7 +8,7 @@ import { lerEscolaridades, normalizarTexto, type Escolaridade } from "./concurso
  * Guardamos só os fatos extraídos (datas, valores, nomes) — não o texto da notícia.
  */
 
-export const VERSAO_FICHA = 2;
+export const VERSAO_FICHA = 3;
 
 export type TipoData =
   | "inscricao"
@@ -254,8 +254,8 @@ export function lerFichaPci(html: string): Ficha {
       const tipo = tipoDaProva(n);
       for (const d of datas) if (!cronograma.some((c) => c.tipo === tipo && c.data === d)) cronograma.push({ tipo, data: d });
     }
-    if (/\btaxa\b|valor da inscricao/.test(n) && !/reducao de \d+%/.test(n)) taxa = taxa.concat(valores(f));
-    if (/remunera|salario|vencimento|ganhos|subsidio/.test(n) && !/^(os )?beneficios|^sao oferecidos|^os (servidores|contratados)/.test(n) && !/\btaxa\b/.test(n)) {
+    if (/\btaxas?\b|valor(es)? da inscricao/.test(n) && !/reducao de \d+%/.test(n)) taxa = taxa.concat(valores(f));
+    if (/remunera|salario|vencimento|ganhos|subsidio/.test(n) && !/^(os )?beneficios|^sao oferecidos|^os (servidores|contratados)/.test(n) && !/\btaxas?\b/.test(n)) {
       salarios = salarios.concat(valores(f.replace(/(aux[ií]lio|vale|abono|adicional)[^,;.]*R\$\s*[\d.,]+/gi, "")));
     }
   }
