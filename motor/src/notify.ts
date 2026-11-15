@@ -10,7 +10,7 @@ export interface Aviso {
   link: string;
 }
 
-async function enviarPush(uid: string, aviso: Aviso) {
+export async function enviarPush(uid: string, aviso: Aviso) {
   const snap = await db.collection(`users/${uid}/dispositivos`).get();
   const tokens = snap.docs.map((d) => d.get("token") as string).filter(Boolean);
   if (tokens.length === 0) return;

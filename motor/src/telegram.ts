@@ -1,5 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { fetch } from "undici";
+import { responderMensagem } from "./bot.js";
 import { db } from "./db.js";
 
 /**
@@ -12,13 +13,14 @@ const API = TOKEN ? `https://api.telegram.org/bot${TOKEN}` : null;
 const CONFIG = db.doc("config/telegram");
 
 export const telegramAtivo = () => Boolean(API);
+let offsetAtual: number | undefined;
 
-async function chamar<T>(metodo: string, corpo: Record<string, unknown>): Promise<T> {
+async function chamar<T>(metodo: string, corpo: Record<string, unknown>, tempoMs = 20_000): Promise<T> {
   const r = await fetch(`${API}/${metodo}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(corpo),
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(tempoMs),
   });
   const j = (await r.json()) as { ok: boolean; result: T; description?: string };
   if (!j.ok) throw new Error(`Telegram ${metodo}: ${j.description ?? r.status}`);
@@ -38,6 +40,16 @@ export async function enviarTelegram(chatId: number | string, titulo: string, co
   });
 }
 
+/** Mensagem simples (respostas do bot), dividida se passar do limite do Telegram. */
+export async function enviarTexto(chatId: number | string, texto: string) {
+  if (!API) return;
+  for (let i = 0; i < texto.length || i === 0; i += 4000) {
+    await chamar("sendMessage", { chat_id: chatId, text: texto.slice(i, i + 4000) || "…", link_preview_options: { is_disabled: true } });
+  }
+}
+
+export const indicarDigitando = (chatId: number) => chamar("sendChatAction", { chat_id: chatId, action: "typing" }).catch(() => {});
+
 /** Publica o @usuário do bot para o app montar o link de conexão. */
 export async function publicarBot() {
   if (!API) return;
@@ -50,11 +62,25 @@ interface Atualizacao {
   message?: { chat: { id: number }; text?: string; from?: { first_name?: string } };
 }
 
-/** Lê mensagens novas do bot: "/start <código>" conecta, "/parar" desconecta. */
-export async function processarTelegram() {
+/**
+ * Lê mensagens novas do bot: "/start <código>" conecta, "/parar" desconecta, o resto é conversa (bot.ts).
+ * esperaSeg > 0 usa "long polling": a chamada fica aberta até chegar mensagem — resposta em segundos.
+ */
+export async function processarTelegram(esperaSeg = 0) {
   if (!API) return 0;
-  const offset = ((await CONFIG.get()).get("offset") as number | undefined) ?? 0;
-  const atualizacoes = await chamar<Atualizacao[]>("getUpdates", { offset, timeout: 0, allowed_updates: ["message"] });
+  // O avanço fica em memória durante a rodada (economiza leituras do Firestore)
+  offsetAtual ??= ((await CONFIG.get()).get("offset") as number | undefined) ?? 0;
+  const offset = offsetAtual;
+  const atualizacoes = await chamar<Atualizacao[]>(
+    "getUpdates",
+    { offset, timeout: esperaSeg, allowed_updates: ["message"] },
+    (esperaSeg + 15) * 1000,
+  );
+  // Grava o avanço antes de responder: se algo travar, a mesma mensagem não é respondida em loop
+  if (atualizacoes.length) {
+    offsetAtual = atualizacoes[atualizacoes.length - 1].update_id + 1;
+    await CONFIG.set({ offset: offsetAtual }, { merge: true });
+  }
   for (const u of atualizacoes) {
     const msg = u.message;
     const texto = msg?.text?.trim() ?? "";
@@ -74,13 +100,12 @@ export async function processarTelegram() {
         const achados = await db.collection("users").where("telegramChatId", "==", chatId).get();
         await Promise.all(achados.docs.map((d) => d.ref.update({ telegramChatId: FieldValue.delete() })));
         await enviarTelegram(chatId, "Desconectado", "Você não vai mais receber alertas aqui.", "https://notara.web.app/configuracoes");
-      } else if (texto.startsWith("/start")) {
-        await enviarTelegram(chatId, "Olá!", "Para receber alertas, abra Notara › Ajustes › Conectar Telegram.", "https://notara.web.app/configuracoes");
+      } else if (texto) {
+        await responderMensagem(chatId, texto);
       }
     } catch (e) {
       console.warn("Falha ao processar mensagem do Telegram", String(e));
     }
   }
-  if (atualizacoes.length) await CONFIG.set({ offset: atualizacoes[atualizacoes.length - 1].update_id + 1 }, { merge: true });
   return atualizacoes.length;
 }

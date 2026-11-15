@@ -173,7 +173,8 @@ async function viaNavegador(cfg: ConfigCaptura, opts: { capturarTela?: boolean }
 }
 
 /** Menos que isso na leitura simples = página provavelmente montada por JavaScript. */
-const MIN_TEXTO_ESTATICO = 20;
+/** Abaixo disso a leitura simples provavelmente perdeu o conteúdo montado por JavaScript. */
+const MIN_TEXTO_ESTATICO = { pagina: 300, elemento: 20 } as const;
 const MAX_BYTES_PDF = 25 * 1024 * 1024;
 
 const ehPdf = (r: { tipoConteudo: string; bytes: Uint8Array }) =>
@@ -212,6 +213,7 @@ export async function capturar(cfg: ConfigCaptura, opts: { capturarTela?: boolea
   if (html && cfg.usarNavegador) return viaNavegador(cfg, opts);
 
   if (html) {
+    let estatico: ResultadoCaptura | null = null;
     // 1º tenta a leitura simples (rápida e barata); se vier vazia, bloqueada
     // ou sem o elemento, abre num navegador de verdade automaticamente.
     try {
@@ -228,12 +230,20 @@ export async function capturar(cfg: ConfigCaptura, opts: { capturarTela?: boolea
       }
       if (r.status < 400) {
         const res = { ...extrairHtml(r.corpo, cfg), status: r.status };
-        if (res.texto.trim().length >= MIN_TEXTO_ESTATICO) return res;
+        if (res.texto.trim().length >= MIN_TEXTO_ESTATICO[cfg.tipo === "elemento" ? "elemento" : "pagina"]) return res;
+        if (res.texto.trim()) estatico = res;
       }
     } catch (e) {
       if (!(e instanceof ErroCaptura) || /não permitid|inválid|HTTP (?!401|403|429|503)\d{3}/i.test(e.message)) throw e;
     }
-    return viaNavegador(cfg, opts);
+    try {
+      const nav = await viaNavegador(cfg, opts);
+      // O navegador não trouxe mais nada: fica com a leitura simples (mais estável)
+      return estatico && nav.texto.trim().length <= estatico.texto.trim().length ? estatico : nav;
+    } catch (e) {
+      if (estatico) return estatico;
+      throw e;
+    }
   }
 
   if (cfg.tipo === "uptime") {
