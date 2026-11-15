@@ -14,5 +14,4 @@ export const db = getFirestore(app);
 db.settings({ ignoreUndefinedProperties: true });
 
 export const URL_APP = process.env.NOTARA_URL ?? "https://notara.web.app";
-export const LIMITE_MONITORES = 50;
 export const INTERVALO_MINIMO_MIN = 5;

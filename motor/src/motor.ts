@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { executarMonitor } from "./check.js";
-import { db, LIMITE_MONITORES } from "./db.js";
+import { db } from "./db.js";
 import { fecharNavegador } from "./navegador.js";
 import { limparPedidosAntigos, pedidosPendentes, processarPedido } from "./pedidos.js";
 import { processarTelegram, publicarBot } from "./telegram.js";
@@ -54,13 +54,8 @@ async function verificarVencidos() {
     .limit(300)
     .get();
 
-  // Respeita o limite de monitores por usuário
-  const porUsuario = new Map<string, number>();
   const tarefa = (doc: (typeof vencidos.docs)[number]) => async () => {
-    const uid = doc.ref.parent.parent!.id;
-    const n = (porUsuario.get(uid) ?? 0) + 1;
-    porUsuario.set(uid, n);
-    if (n > LIMITE_MONITORES || doc.get("excluido") === true) return;
+    if (doc.get("excluido") === true) return;
     const reservado = await db.runTransaction(async (t) => {
       const s = await t.get(doc.ref);
       const proxima = s.get("exec.proxima") as Timestamp | undefined;

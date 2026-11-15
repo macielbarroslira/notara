@@ -137,7 +137,7 @@ export function Concursos() {
         </p>
       )}
       <p className="mt-6 flex items-center gap-2 text-xs text-faint">
-        <Icone nome="alerta" className="size-3.5" /> Cada fonte seguida conta como um monitor (limite de 50).
+        <Icone nome="alerta" className="size-3.5" /> Cada fonte seguida vira um monitor na sua lista.
       </p>
     </div>
   );

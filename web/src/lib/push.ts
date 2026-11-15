@@ -19,6 +19,22 @@ async function idDoToken(token: string) {
   return Array.from(new Uint8Array(hash).slice(0, 16), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Espera o service worker terminar de instalar: o push só funciona com ele ativo. */
+async function swAtivo(reg: ServiceWorkerRegistration) {
+  if (reg.active) return reg;
+  const sw = reg.installing ?? reg.waiting;
+  if (sw) {
+    await new Promise<void>((pronto, falhou) => {
+      const tempo = setTimeout(() => falhou(new Error("O serviço de notificações demorou para iniciar. Tente de novo.")), 15_000);
+      sw.addEventListener("statechange", () => {
+        if (sw.state === "activated") (clearTimeout(tempo), pronto());
+        if (sw.state === "redundant") (clearTimeout(tempo), falhou(new Error("Não foi possível iniciar o serviço de notificações.")));
+      });
+    });
+  }
+  return reg;
+}
+
 /** Pede permissão, registra o service worker e salva o token deste aparelho. */
 export async function ativarPush(uid: string) {
   if (!(await isSupported())) {
@@ -31,7 +47,7 @@ export async function ativarPush(uid: string) {
   if (!VAPID_KEY) throw new Error("A chave de push (VAPID) ainda não foi configurada no app.");
   const permissao = await Notification.requestPermission();
   if (permissao !== "granted") throw new Error("Permissão de notificação negada. Libere nas configurações do navegador.");
-  const reg = await navigator.serviceWorker.register(SW);
+  const reg = await swAtivo(await navigator.serviceWorker.register(SW));
   const token = await getToken(getMessaging(app), { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
   await setDoc(doc(db, `users/${uid}/dispositivos/${await idDoToken(token)}`), {
     token,

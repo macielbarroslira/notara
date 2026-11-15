@@ -90,7 +90,7 @@ export function Configuracoes() {
       <Cartao>
         <h2 className="font-semibold">Limites</h2>
         <ul className="mt-2 space-y-1 text-sm text-muted">
-          <li>Até 50 monitores por conta</li>
+          <li>Monitores ilimitados</li>
           <li>Intervalo mínimo de 5 minutos</li>
           <li>Histórico das últimas 50 versões de cada monitor</li>
         </ul>
