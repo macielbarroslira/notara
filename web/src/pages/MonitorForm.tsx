@@ -1,6 +1,8 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { EscolherModelo } from "../components/EscolherModelo";
+import { aplicarModelo, MODELOS } from "../lib/modelos";
 import { Icone } from "../components/Icone";
 import { SeletorVisual, type ResultadoSeletor } from "../components/SeletorVisual";
 import { Aviso, Botao, Cabecalho, Campo, Carregando, Cartao, classeInput } from "../components/ui";
@@ -50,7 +52,10 @@ export function MonitorForm() {
   const navegar = useNavigate();
   const { monitor, carregando } = useMonitor(id);
 
-  const [m, setM] = useState<MonitorDados>(() => monitorVazio(user?.email ?? ""));
+  const [busca] = useSearchParams();
+  const modeloId = busca.get("modelo");
+  const modelo = MODELOS.find((x) => x.id === modeloId);
+  const [m, setM] = useState<MonitorDados>(() => aplicarModelo(modeloId, user?.email ?? ""));
   const [seletoresTxt, setSeletoresTxt] = useState("");
   const [excluirTxt, setExcluirTxt] = useState("");
   const [ignorarTxt, setIgnorarTxt] = useState("");
@@ -192,6 +197,7 @@ export function MonitorForm() {
     }
   }
 
+  if (!editando && !modeloId) return <EscolherModelo />;
   if (editando && (carregando || !carregado)) return <Carregando />;
 
   return (
@@ -206,14 +212,17 @@ export function MonitorForm() {
       />
     )}
     <form onSubmit={salvar} className="mx-auto max-w-3xl">
-      <Link to={editando ? `/monitores/${id}` : "/"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link to={editando ? `/monitores/${id}` : "/monitores/novo"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <Icone nome="voltar" className="size-4" /> Voltar
       </Link>
-      <Cabecalho titulo={editando ? "Editar monitor" : "Novo monitor"} />
+      <Cabecalho
+        titulo={editando ? "Editar monitor" : (modelo?.nome ?? "Novo monitor")}
+        sub={!editando && modelo ? modelo.desc : undefined}
+      />
 
       <div className="space-y-4">
         <Secao titulo="1. O que monitorar">
-          <Campo rotulo="Endereço (URL)">
+          <Campo rotulo="Endereço (URL)" dica={modelo?.dicaUrl}>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 required
@@ -463,6 +472,10 @@ export function MonitorForm() {
           <label className="flex items-center gap-3 text-sm">
             <input type="checkbox" checked={m.acoes.push} onChange={(e) => setAcao("push", e.target.checked)} className="size-5 accent-accent" />
             Notificação push nos meus aparelhos <Link to="/configuracoes" className="text-accent underline">(ativar)</Link>
+          </label>
+          <label className="flex items-center gap-3 text-sm">
+            <input type="checkbox" checked={m.acoes.telegram} onChange={(e) => setAcao("telegram", e.target.checked)} className="size-5 accent-accent" />
+            Telegram <Link to="/configuracoes" className="text-accent underline">(conectar)</Link>
           </label>
           <Campo rotulo="E-mail" dica="Deixe vazio para não receber por e-mail.">
             <input type="email" value={m.acoes.email} onChange={(e) => setAcao("email", e.target.value)} className={classeInput} />

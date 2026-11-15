@@ -36,8 +36,19 @@ service cloud.firestore {
         && (!('excluido' in d) || d.excluido is bool);
     }
 
+    // Configuração pública (ex.: @usuário do bot do Telegram), gravada pelo motor
+    match /config/publica {
+      allow read: if request.auth != null;
+    }
+
     match /users/{uid} {
-      allow read, write: if logado(uid);
+      allow read, delete: if logado(uid);
+      // O vínculo com o Telegram (telegramChatId) só é gravado pelo motor
+      allow create: if logado(uid) && !('telegramChatId' in request.resource.data);
+      // (pode remover o vínculo para desconectar, mas não criar/alterar)
+      allow update: if logado(uid)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['telegramChatId'])
+            || !('telegramChatId' in request.resource.data));
 
       match /monitores/{monitorId} {
         allow read: if logado(uid);

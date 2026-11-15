@@ -35,6 +35,7 @@ export interface ConjuntoRegras {
 
 export interface Acoes {
   push?: boolean;
+  telegram?: boolean;
   email?: string;
   webhook?: string;
   slack?: string;

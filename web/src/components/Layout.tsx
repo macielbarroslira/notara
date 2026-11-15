@@ -7,7 +7,9 @@ import { Icone, type NomeIcone } from "./Icone";
 import { Aviso, Marca } from "./ui";
 
 const itens: { para: string; nome: string; icone: NomeIcone }[] = [
-  { para: "/", nome: "Monitores", icone: "monitores" },
+  { para: "/", nome: "Painel", icone: "raio" },
+  { para: "/monitores", nome: "Monitores", icone: "monitores" },
+  { para: "/concursos", nome: "Concursos", icone: "busca" },
   { para: "/alteracoes", nome: "Alterações", icone: "sino" },
   { para: "/configuracoes", nome: "Ajustes", icone: "ajustes" },
 ];
@@ -45,7 +47,7 @@ export function Layout() {
   }, [pathname]);
   useEffect(() => ouvirPrimeiroPlano(), []);
 
-  const ativo = (para: string) => (para === "/" ? pathname === "/" || pathname.startsWith("/monitores") : pathname.startsWith(para));
+  const ativo = (para: string) => (para === "/" ? pathname === "/" : pathname.startsWith(para));
 
   return (
     <div className="min-h-dvh">
@@ -97,7 +99,7 @@ export function Layout() {
       </main>
 
       {/* Abas inferiores no celular */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-bg/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden">
         {[itens[0], itens[1]].map((i) => (
           <NavLink key={i.para} to={i.para} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${ativo(i.para) ? "text-ink" : "text-faint"}`}>
             <span className="relative">
@@ -117,10 +119,19 @@ export function Layout() {
           </span>
           Novo
         </Link>
-        <NavLink to="/configuracoes" className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${ativo("/configuracoes") ? "text-ink" : "text-faint"}`}>
-          <Icone nome="ajustes" className="size-6" />
-          Ajustes
-        </NavLink>
+        {[itens[3], itens[4]].map((i) => (
+          <NavLink key={i.para} to={i.para} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${ativo(i.para) ? "text-ink" : "text-faint"}`}>
+            <span className="relative">
+              <Icone nome={i.icone} className="size-6" />
+              {i.para === "/alteracoes" && naoLidas.length > 0 && (
+                <span className="absolute -top-1.5 -right-2.5">
+                  <Contador n={naoLidas.length} />
+                </span>
+              )}
+            </span>
+            {i.nome}
+          </NavLink>
+        ))}
       </nav>
     </div>
   );

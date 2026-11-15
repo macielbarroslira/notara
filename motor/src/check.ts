@@ -4,7 +4,7 @@ import { FieldValue, Timestamp, type DocumentReference } from "firebase-admin/fi
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { proximaExecucao } from "./agenda.js";
 import { emailAlteracao, emailAviso } from "./email.js";
-import { capturar } from "./extract.js";
+import { capturar, TEXTO_VOLATIL } from "./extract.js";
 import { notificar } from "./notify.js";
 import { atualizarMemoria, avaliarRegras, linhasInéditas } from "./rules.js";
 import type { Monitor } from "./types.js";
@@ -27,7 +27,7 @@ export function aplicarIgnorar(texto: string, padroes: string[] = []): string {
   for (const p of padroes) {
     if (!p.trim()) continue;
     try {
-      saida = saida.replace(new RegExp(p, "gi"), "");
+      saida = saida.replace(new RegExp(p, "gim"), "");
     } catch {
       /* regex inválida: ignora */
     }
@@ -121,7 +121,8 @@ async function processar(
     // Screenshot só é tirado quando o navegador é usado (configurado ou automático)
     const r = await capturar(m, { capturarTela: true });
     const texto = r.texto.slice(0, MAX_TEXTO);
-    const comparavel = aplicarIgnorar(texto, m.ignorar);
+    // Datas de "atualizado em", "há X minutos" e contadores não contam como mudança
+    const comparavel = aplicarIgnorar(texto, [...TEXTO_VOLATIL, ...(m.ignorar ?? [])]);
     const hash = sha(comparavel);
     const base = {
       // Página precisou de JavaScript: lembra disso para as próximas verificações
@@ -168,7 +169,7 @@ async function processar(
     // Memória de linhas já vistas (monitores antigos começam pela versão anterior)
     const vistas: string[] = memoria.exists
       ? ((memoria.get("d") as string[]) ?? [])
-      : atualizarMemoria([], aplicarIgnorar(textoAntigo, m.ignorar));
+      : atualizarMemoria([], aplicarIgnorar(textoAntigo, [...TEXTO_VOLATIL, ...(m.ignorar ?? [])]));
     const ineditas = linhasInéditas(comparavel, vistas);
     await memoriaRef.set({ d: atualizarMemoria(vistas, comparavel) });
 

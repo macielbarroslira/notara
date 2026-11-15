@@ -3,6 +3,7 @@ import { executarMonitor } from "./check.js";
 import { db, LIMITE_MONITORES } from "./db.js";
 import { fecharNavegador } from "./navegador.js";
 import { limparPedidosAntigos, pedidosPendentes, processarPedido } from "./pedidos.js";
+import { processarTelegram, publicarBot } from "./telegram.js";
 import type { Monitor } from "./types.js";
 
 /**
@@ -87,6 +88,9 @@ async function atenderPedidos() {
 async function main() {
   const fim = Date.now() + DURACAO_MS;
   console.log(`[${hora()}] Motor do Notara iniciado (atende pedidos por ${Math.round(DURACAO_MS / 60_000)} min)`);
+  await publicarBot().catch((e) => console.warn("Telegram: ", String(e)));
+  const mensagensTelegram = () => processarTelegram().catch((e) => (console.warn("Telegram: ", String(e)), 0));
+  await mensagensTelegram();
   console.log(`Excluídos: ${await limparExcluidos()}`);
   console.log(`Pedidos atendidos: ${await atenderPedidos()}`);
   console.log(`Monitores verificados: ${await verificarVencidos()}`);
@@ -95,6 +99,7 @@ async function main() {
   while (Date.now() < fim) {
     await dormir(ESPERA_ENTRE_BUSCAS_MS);
     const n = await atenderPedidos();
+    await mensagensTelegram();
     if (n) console.log(`[${hora()}] Pedidos atendidos: ${n}`);
     if (++voltas % 12 === 0) await verificarVencidos(); // ~1 min
   }

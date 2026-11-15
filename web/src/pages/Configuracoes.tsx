@@ -1,5 +1,6 @@
 import { signOut } from "firebase/auth";
 import { useEffect, useState } from "react";
+import { ConectarTelegram } from "../components/ConectarTelegram";
 import { Aviso, Botao, Cabecalho, Cartao } from "../components/ui";
 import { auth } from "../firebase";
 import { useAuth, useUid } from "../lib/dados";
@@ -53,6 +54,8 @@ export function Configuracoes() {
         <p className="mt-1 text-sm text-muted">{user?.email}</p>
         <Botao className="mt-4" icone="sair" onClick={() => signOut(auth)}>Sair</Botao>
       </Cartao>
+
+      <ConectarTelegram />
 
       <Cartao>
         <h2 className="font-semibold">Notificações neste aparelho</h2>

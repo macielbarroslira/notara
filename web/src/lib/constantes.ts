@@ -77,7 +77,7 @@ export function monitorVazio(email = ""): MonitorDados {
     intervaloMin: 60,
     ativo: true,
     regras: { operador: "E", itens: [], formatoNumero: "br" },
-    acoes: { push: true, email, webhook: "", slack: "", discord: "", teams: "" },
+    acoes: { push: true, telegram: true, email, webhook: "", slack: "", discord: "", teams: "" },
     tags: [],
     agenda: { dias: [], inicio: "00:00", fim: "24:00", aleatorio: false },
     aoErrar: { aposFalhas: 3, avisarRecuperacao: true },

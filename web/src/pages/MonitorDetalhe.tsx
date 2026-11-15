@@ -36,7 +36,7 @@ export function MonitorDetalhe() {
   const [selB, setSelB] = useState<string | null>(null);
 
   if (carregando) return <Carregando />;
-  if (!monitor || !id) return <Vazio titulo="Monitor não encontrado"><Link to="/" className="text-accent underline">Voltar</Link></Vazio>;
+  if (!monitor || !id) return <Vazio titulo="Monitor não encontrado"><Link to="/monitores" className="text-accent underline">Voltar</Link></Vazio>;
 
   const ref = doc(db, `users/${uid}/monitores/${id}`);
 
@@ -59,7 +59,7 @@ export function MonitorDetalhe() {
     if (!confirm(`Excluir o monitor “${monitor!.nome}” e todo o histórico?`)) return;
     // O motor apaga o monitor, o histórico e as alterações na próxima rodada
     await updateDoc(ref, { excluido: true, ativo: false });
-    navegar("/");
+    navegar("/monitores");
   }
 
   // Comparação do histórico: por padrão a mais recente x anterior
@@ -76,7 +76,7 @@ export function MonitorDetalhe() {
 
   return (
     <>
-      <Link to="/" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link to="/monitores" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <Icone nome="voltar" className="size-4" /> Monitores
       </Link>
       <Cabecalho

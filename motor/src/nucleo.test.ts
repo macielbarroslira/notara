@@ -143,3 +143,28 @@ test("PDF: extrai o texto", async () => {
   assert.equal(r.paginas, 1);
   await assert.rejects(textoDoPdf(new TextEncoder().encode("isto nao e pdf")), ErroCaptura);
 });
+
+test("ruído: remove compartilhar, cookies e 'atualizado em'", async () => {
+  const { extrairHtml, TEXTO_VOLATIL } = await import("./extract.js");
+  const html = `<html><body><main>
+    <div class="social-links">Compartilhe: Compartilhe por Facebook Compartilhe por Twitter</div>
+    <div id="cookie-banner">Usamos cookies. Aceitar</div>
+    <p class="documentByLine">Publicado em 13/08/2025 Atualizado em 10/11/2026 19h22</p>
+    <h1>Concurso 2025</h1><ul><li>Edital nº 16 – Resultado</li></ul>
+    <section class="social-impact">${"Conteúdo longo de verdade. ".repeat(30)}</section>
+  </main></body></html>`;
+  const { texto } = extrairHtml(html, { url: "https://x.gov.br", tipo: "pagina" });
+  assert.doesNotMatch(texto, /Compartilhe|cookies|Atualizado em/);
+  assert.match(texto, /Edital nº 16/);
+  assert.match(texto, /Conteúdo longo de verdade/); // bloco grande com classe "social" é mantido
+  const comparavel = aplicarIgnorar("Atualizado em 10/11/2026\nPreço R$ 10\nhá 5 minutos\n1.234 visualizações", TEXTO_VOLATIL);
+  assert.doesNotMatch(comparavel, /Atualizado|há 5 minutos|visualizações/);
+  assert.match(comparavel, /Preço R\$ 10/);
+});
+
+test("acentos: usa o charset declarado no HTML quando o servidor não informa", async () => {
+  const { decodificar } = await import("./fetcher.js");
+  const latin1 = Uint8Array.from([...'<meta charset="iso-8859-1"><p>T'].map((c) => c.charCodeAt(0)).concat([0xe9], [...'cnica'].map((c) => c.charCodeAt(0))));
+  assert.match(decodificar(latin1, "text/html"), /Técnica/);
+  assert.match(decodificar(new TextEncoder().encode("<p>Técnica</p>"), "text/html"), /Técnica/);
+});

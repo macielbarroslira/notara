@@ -80,8 +80,18 @@ export interface OpcoesFetch {
   maxBytes?: number;
 }
 
-function decodificar(bytes: Uint8Array, tipoConteudo: string): string {
-  const charset = /charset=([^;]+)/i.exec(tipoConteudo)?.[1]?.trim().replace(/"/g, "");
+/** Charset declarado dentro do HTML/XML (<meta charset>, http-equiv ou <?xml encoding>). */
+function charsetDoDocumento(bytes: Uint8Array): string | undefined {
+  const inicio = new TextDecoder("latin1").decode(bytes.subarray(0, 4096));
+  return (
+    /<meta[^>]+charset=["']?\s*([\w-]+)/i.exec(inicio)?.[1] ??
+    /<\?xml[^>]+encoding=["']([\w-]+)/i.exec(inicio)?.[1]
+  );
+}
+
+export function decodificar(bytes: Uint8Array, tipoConteudo: string): string {
+  const charset =
+    /charset=([^;]+)/i.exec(tipoConteudo)?.[1]?.trim().replace(/"/g, "") || charsetDoDocumento(bytes);
   try {
     return new TextDecoder(charset || "utf-8").decode(bytes);
   } catch {

@@ -1,3 +1,4 @@
+import { enviarTelegram, telegramAtivo } from "./telegram.js";
 import { getMessaging } from "firebase-admin/messaging";
 import { app, db, URL_APP } from "./db.js";
 import { fetchSeguro } from "./fetcher.js";
@@ -60,6 +61,18 @@ export async function notificar(
   const tarefas: Array<[string, Promise<unknown>]> = [];
 
   if (a.push !== false) tarefas.push(["push", enviarPush(uid, aviso)]);
+  if (a.telegram !== false && telegramAtivo()) {
+    tarefas.push([
+      "telegram",
+      db
+        .doc(`users/${uid}`)
+        .get()
+        .then((u) => {
+          const chat = u.get("telegramChatId") as number | undefined;
+          return chat ? enviarTelegram(chat, aviso.titulo, aviso.corpo, aviso.link) : null;
+        }),
+    ]);
+  }
   if (a.webhook)
     tarefas.push([
       "webhook",

@@ -40,6 +40,7 @@ export function extrairHtml(html: string, cfg: ConfigCaptura): { texto: string; 
   const $ = cheerio.load(html);
   const titulo = $("title").first().text().trim() || null;
   $("script,style,noscript,template,svg,iframe,link,meta").remove();
+  limparRuido($, cfg.tipo === "pagina");
   for (const sel of cfg.excluir ?? []) {
     if (!sel.trim()) continue;
     try {
@@ -75,6 +76,40 @@ export function extrairHtml(html: string, cfg: ConfigCaptura): { texto: string; 
 
 const MENUS =
   "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo], .skip-link, a[href='#main'], a[href='#conteudo']";
+
+/** Botões de compartilhar, avisos de cookies, anúncios e afins — mudam à toa e não interessam. */
+const RUIDO = [
+  // compartilhar / redes sociais
+  "[class*=share]", "[id*=share]", "[class*=social]", "[id*=social]", "[class*=compartilh]", "[id*=compartilh]",
+  "a[href*='facebook.com/sharer']", "a[href*='twitter.com/intent']", "a[href*='x.com/intent']", "a[href*='api.whatsapp.com/send']",
+  "a[href*='wa.me/?text']", "a[href*='linkedin.com/share']", "a[href*='t.me/share']",
+  // cookies / consentimento / LGPD
+  "[class*=cookie]", "[id*=cookie]", "[class*=consent]", "[id*=consent]", "[class*=lgpd]", "[id*=lgpd]", "[class*=gdpr]",
+  // anúncios
+  "ins.adsbygoogle", "[id^=google_ads]", "[class*=advert]", "[id*=advert]", "[class*=publicidade]", "[class*=banner-ad]",
+  // navegação auxiliar
+  "[class*=breadcrumb]", "[id*=breadcrumb]", "[class*=back-to-top]", "[class*=voltar-topo]", "[aria-label*='Compartilh']",
+].join(",");
+
+/** Só na página inteira: linhas de "publicado/atualizado em", contadores de visitas etc. */
+const RUIDO_PAGINA = ["[class*=byline]", ".documentByLine", "[class*=post-meta]", "[class*=views-count]", "[class*=contador]"].join(",");
+
+/** Remove ruído, mas nunca blocos grandes (uma classe "social" num container de conteúdo, por exemplo). */
+function limparRuido($: cheerio.CheerioAPI, paginaInteira: boolean) {
+  const seletor = paginaInteira ? `${RUIDO},${RUIDO_PAGINA}` : RUIDO;
+  $(seletor).each((_, el) => {
+    const n = $(el);
+    if (n.is("html, body, main, article")) return;
+    if (n.text().replace(/\s+/g, " ").trim().length <= 400) n.remove();
+  });
+}
+
+/** Trechos de texto que mudam sem que o conteúdo mude (ignorados ao comparar versões). */
+export const TEXTO_VOLATIL = [
+  "^\\s*(publicado|atualizado|última atualização|ultima atualizacao)\\b.*$",
+  "\\bhá \\d+ (segundos?|minutos?|horas?|dias?)\\b",
+  "\\b\\d[\\d.]* (visualizações|visualizacoes|views|acessos|leituras)\\b",
+];
 
 function extrairFeed(xml: string): { texto: string; titulo: string | null } {
   const $ = cheerio.load(xml, { xml: true });

@@ -119,3 +119,15 @@ export function useVersoes(monitorId: string | undefined, max = 50) {
     `v-${uid}-${monitorId}-${max}`,
   );
 }
+
+/** Alterações dos últimos N dias (para o gráfico do painel). */
+export function useAlteracoesDesde(dias: number) {
+  const uid = useUid();
+  const desde = new Date();
+  desde.setHours(0, 0, 0, 0);
+  desde.setDate(desde.getDate() - (dias - 1));
+  return useConsulta<Alteracao>(
+    query(collection(db, `users/${uid}/alteracoes`), where("criadoEm", ">=", desde), orderBy("criadoEm", "desc"), limit(500)),
+    `ad-${uid}-${desde.toISOString().slice(0, 10)}`,
+  );
+}

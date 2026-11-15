@@ -28,4 +28,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_EMULADORES) {
 }
 
 /** Chave pública VAPID (Firebase Console › Cloud Messaging › Certificados push da Web). */
-export const VAPID_KEY = import.meta.env.VITE_VAPID_KEY as string | undefined;
+// Chave PÚBLICA (gerada em notara-monitor › Cloud Messaging › Certificados push da Web).
+export const VAPID_KEY =
+  (import.meta.env.VITE_VAPID_KEY as string | undefined) ??
+  "BFjkBM5RXC4seQcrr1_IMvckKRkHXtyGB1XFo9BT1Ut7BjOzYwrc3tfcyePI0Qr6UHvEWl5rdnUCxXeY2QReXh4";
