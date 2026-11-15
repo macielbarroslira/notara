@@ -41,6 +41,20 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    // Banco de concursos: gravado só pelo motor, lido por quem está logado
+    match /concursos/{concursoId} {
+      allow read: if request.auth != null;
+      match /eventos/{eventoId} {
+        allow read: if request.auth != null;
+      }
+    }
+    match /concursos_indice/{parte} {
+      allow read: if request.auth != null;
+    }
+    match /fontes_saude/{fonte} {
+      allow read: if request.auth != null;
+    }
+
     match /users/{uid} {
       allow read, delete: if logado(uid);
       // O vínculo com o Telegram (telegramChatId) só é gravado pelo motor

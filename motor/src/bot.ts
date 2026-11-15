@@ -1,5 +1,7 @@
 import { Timestamp, type DocumentSnapshot } from "firebase-admin/firestore";
 import { executarMonitor } from "./check.js";
+import { carregarIndice, filtrarConcursos, type FiltrosConcurso } from "./banco.js";
+import { hojeBrasilia, situacaoAgora } from "./concursos.js";
 import { db, INTERVALO_MINIMO_MIN, URL_APP } from "./db.js";
 import { capturar } from "./extract.js";
 import { validarUrl } from "./fetcher.js";
@@ -137,6 +139,45 @@ export async function criarMonitor(
   return { criado: true, monitores: total + 1, link: `${URL_APP}/monitores/${ref.id}`, aCadaMinutos: intervalo, tipo };
 }
 
+/** Busca no banco de concursos (índice em memória). */
+export async function buscarConcursos(a: Record<string, unknown>) {
+  const linhas = await carregarIndice();
+  if (!linhas.length) return { erro: "O banco de concursos ainda está sendo montado (primeira coleta). Tente em alguns minutos." };
+  const hoje = hojeBrasilia();
+  const filtros: FiltrosConcurso = {
+    texto: a.texto ? String(a.texto) : undefined,
+    uf: a.uf ? String(a.uf) : undefined,
+    cidade: a.cidade ? String(a.cidade) : undefined,
+    escolaridade: a.escolaridade ? String(a.escolaridade) : undefined,
+    area: a.area ? String(a.area) : undefined,
+    esfera: a.esfera ? String(a.esfera) : undefined,
+    salarioMin: Number(a.salarioMin) || undefined,
+    vagasMin: Number(a.vagasMin) || undefined,
+    terminaAte: a.terminaAte ? String(a.terminaAte) : undefined,
+    apenasAbertos: a.incluirEncerrados !== true,
+    ordenar: (["prazo", "salario", "vagas", "recentes"] as const).find((o) => o === a.ordenar),
+  };
+  const achados = filtrarConcursos(linhas, filtros, hoje);
+  const limite = Math.min(Math.max(Math.round(Number(a.limite)) || 8, 1), 20);
+  const dias = (iso: string | null) => (iso ? Math.round((Date.parse(iso) - Date.parse(hoje)) / 86_400_000) : null);
+  return {
+    encontrados: achados.length,
+    concursos: achados.slice(0, limite).map((l) => ({
+      orgao: l.o,
+      local: [l.c, l.u === "BR" ? "Nacional" : l.u].filter(Boolean).join(" - "),
+      vagas: l.v ?? (l.cr ? "cadastro de reserva" : "não informado"),
+      salarioAte: l.s,
+      cargos: l.cg,
+      escolaridade: l.es.join(", "),
+      inscricoes: `${l.ii ? `${l.ii.split("-").reverse().join("/")} a ` : "até "}${l.if?.split("-").reverse().join("/") ?? "?"}`,
+      situacao: situacaoAgora({ inscricaoInicio: l.ii, inscricaoFim: l.if, situacao: l.si }, hoje),
+      diasParaTerminar: dias(l.if),
+      link: l.l,
+    })),
+    fonte: "banco do Notara (PCI Concursos), atualizado a cada 2 h",
+  };
+}
+
 /** Lê um endereço agora (sem salvar) — para a IA olhar o conteúdo de uma página. */
 export async function lerPagina(url: string, tipo?: string) {
   validarUrl(url);
@@ -167,6 +208,7 @@ const AJUDA = `Comandos do Notara:
 /novidades — as últimas mudanças encontradas
 /verificar <nome> — verifica um monitor agora
 /pausar <nome> e /retomar <nome>
+/concursos <busca> — procura concursos abertos (ex.: /concursos enfermeiro MG)
 /teste — envia um alerta de teste (Telegram e celular)
 /modelo — escolhe qual IA responde (Gemini, Groq, OpenCode)
 /limpar — começa uma conversa nova com a IA (esquece o assunto anterior)
@@ -204,6 +246,22 @@ async function comando(uid: string, chatId: number, cmd: string, arg: string): P
       if (!arg) return `Use: /${cmd} <parte do nome do monitor>`;
       const r = await pausarOuRetomar(uid, arg, cmd === "retomar");
       return "erro" in r ? r.erro! : `${r.ativo ? "▶️ Retomado" : "⏸ Pausado"}: ${r.monitor}`;
+    }
+    case "concursos":
+    case "concurso": {
+      // "/concursos enfermeiro MG" → texto + UF (se a última palavra for uma sigla)
+      const partes = arg.split(/\s+/).filter(Boolean);
+      const uf = partes.length && /^[A-Za-z]{2}$/.test(partes.at(-1)!) ? partes.pop() : undefined;
+      const r = await buscarConcursos({ texto: partes.join(" "), uf, limite: 10 });
+      if ("erro" in r) return r.erro!;
+      if (!r.encontrados) return "Nenhum concurso aberto com essa busca.";
+      return [
+        `${r.encontrados} concurso(s) com inscrição aberta ou em breve${r.encontrados > 10 ? " — os 10 que terminam primeiro:" : ":"}`,
+        ...r.concursos.map(
+          (c) =>
+            `\n📌 ${c.orgao} (${c.local})\n   ${typeof c.vagas === "number" ? `${c.vagas} vagas` : c.vagas}${c.salarioAte ? ` · até R$ ${c.salarioAte.toLocaleString("pt-BR")}` : ""} · ${c.escolaridade}\n   ${c.cargos}\n   Inscrições: ${c.inscricoes}${c.diasParaTerminar !== null && c.diasParaTerminar >= 0 ? ` (faltam ${c.diasParaTerminar} dias)` : ""}\n   ${c.link}`,
+        ),
+      ].join("\n");
     }
     case "limpar":
     case "nova":

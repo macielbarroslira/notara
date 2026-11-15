@@ -1,6 +1,7 @@
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { BancoConcursos } from "../components/BancoConcursos";
 import { Icone } from "../components/Icone";
 import { Aviso, Botao, Cabecalho, Campo, Carregando, Cartao, classeInput, Selo, StatusBadge } from "../components/ui";
 import { db } from "../firebase";
@@ -10,8 +11,42 @@ import { FONTES_CONCURSOS, monitorDeFonte, type FonteConcursos } from "../lib/mo
 import { dominio, relativo } from "../lib/tempo";
 import { ListaAlteracoes } from "./Alteracoes";
 
-/** Seguir bancas e agregadores: avisa quando aparece um concurso novo na lista deles. */
+/** Concursos: banco com busca (padrão) e fontes seguidas como monitores. */
 export function Concursos() {
+  const [params, setParams] = useSearchParams();
+  const aba = params.get("aba") === "fontes" ? "fontes" : "banco";
+  const abas = (
+    <div className="mb-5 inline-flex rounded-full bg-panel p-1">
+      {(
+        [
+          ["banco", "Banco de concursos"],
+          ["fontes", "Fontes que sigo"],
+        ] as const
+      ).map(([id, nome]) => (
+        <button
+          key={id}
+          onClick={() => setParams(id === "banco" ? {} : { aba: id }, { replace: true })}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${aba === id ? "bg-card text-ink shadow-ring" : "text-muted hover:text-ink"}`}
+        >
+          {nome}
+        </button>
+      ))}
+    </div>
+  );
+  if (aba === "banco") {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <Cabecalho titulo="Concursos" sub="Todos os concursos abertos do Brasil, com busca por cargo, cidade, salário e escolaridade." />
+        {abas}
+        <BancoConcursos />
+      </div>
+    );
+  }
+  return <FontesSeguidas abas={abas} />;
+}
+
+/** Seguir bancas e agregadores: avisa quando aparece um concurso novo na lista deles. */
+function FontesSeguidas({ abas }: { abas: React.ReactNode }) {
   const uid = useUid();
   const { user } = useAuth();
   const { dados: monitores, carregando } = useMonitores();
@@ -56,9 +91,10 @@ export function Concursos() {
   return (
     <div className="mx-auto max-w-5xl">
       <Cabecalho
-        titulo="Achar concursos novos"
+        titulo="Concursos"
         sub="Siga bancas e agregadores. O Notara avisa só quando aparece um item novo na lista deles."
       />
+      {abas}
 
       <Cartao className="mb-4">
         <Campo
