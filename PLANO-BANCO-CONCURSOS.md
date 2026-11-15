@@ -4,6 +4,15 @@
 > todas as variáveis para busca instantânea (no app, no Telegram e pela IA) e alertas de "concurso
 > novo que combina comigo". Tudo dentro dos planos gratuitos (Firestore Spark, GitHub Actions, IAs grátis).
 
+## Andamento
+
+| Fase | Status | Observações |
+|---|---|---|
+| 1. Fundação | ✅ no ar (15/11/2026) | 466 concursos; coleta a cada 2 h (6h–23h); índice compacto (1 documento); aba Banco com filtros; `buscar_concursos` na IA; `/concursos` no Telegram |
+| 2. Detalhes | ✅ no ar (15/11/2026) | Ficha extraída da página de cada concurso, **sem IA** (extrator determinístico, versão 3): cronograma (inscrição com hora, isenção, boleto, cada prova), banca, taxa, salário mín./máx., jornada, regime, validade, etapas, benefícios, cargos com vagas imediatas + CR. Página da ficha no app; `detalhes_concurso` na IA; eventos de retificação/prorrogação com o que mudou. Ao subir a versão do extrator, as fichas são relidas sozinhas. |
+| 2b. Adaptadores das bancas | ⏸ movido para a fase 4 | A banca já é identificada pelo site de inscrição (43 bancas conhecidas). Ler o site de cada banca só vale a pena junto com os **editais oficiais** (fase 4), que são a fonte primária. |
+| 3–5 | a fazer | |
+
 ## 1. Situação hoje e o que muda
 
 | Hoje | Com o banco |
