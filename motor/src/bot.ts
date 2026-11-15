@@ -151,6 +151,7 @@ export async function buscarConcursos(a: Record<string, unknown>) {
     escolaridade: a.escolaridade ? String(a.escolaridade) : undefined,
     area: a.area ? String(a.area) : undefined,
     esfera: a.esfera ? String(a.esfera) : undefined,
+    banca: a.banca ? String(a.banca) : undefined,
     salarioMin: Number(a.salarioMin) || undefined,
     vagasMin: Number(a.vagasMin) || undefined,
     terminaAte: a.terminaAte ? String(a.terminaAte) : undefined,
@@ -163,7 +164,9 @@ export async function buscarConcursos(a: Record<string, unknown>) {
   return {
     encontrados: achados.length,
     concursos: achados.slice(0, limite).map((l) => ({
+      id: l.i,
       orgao: l.o,
+      banca: l.bn ?? undefined,
       local: [l.c, l.u === "BR" ? "Nacional" : l.u].filter(Boolean).join(" - "),
       vagas: l.v ?? (l.cr ? "cadastro de reserva" : "não informado"),
       salarioAte: l.s,
@@ -172,9 +175,66 @@ export async function buscarConcursos(a: Record<string, unknown>) {
       inscricoes: `${l.ii ? `${l.ii.split("-").reverse().join("/")} a ` : "até "}${l.if?.split("-").reverse().join("/") ?? "?"}`,
       situacao: situacaoAgora({ inscricaoInicio: l.ii, inscricaoFim: l.if, situacao: l.si }, hoje),
       diasParaTerminar: dias(l.if),
+      proximaProva: l.pv ? l.pv.split("-").reverse().join("/") : undefined,
+      ficha: `${URL_APP}/concursos/${l.i}`,
       link: l.l,
     })),
     fonte: "banco do Notara (PCI Concursos), atualizado a cada 2 h",
+  };
+}
+
+const NOME_DATA: Record<string, string> = {
+  inscricao: "Inscrições",
+  isencao: "Pedido de isenção",
+  pagamento: "Pagamento do boleto até",
+  prova_objetiva: "Prova objetiva",
+  prova_discursiva: "Prova discursiva",
+  prova_pratica: "Prova prática",
+  taf: "Teste físico (TAF)",
+  titulos: "Títulos",
+  avaliacao_psicologica: "Avaliação psicológica",
+  prova: "Provas",
+};
+
+/** Ficha completa de um concurso do banco (por id, ou pela melhor correspondência da busca). */
+export async function detalhesConcurso(a: Record<string, unknown>) {
+  let id = a.id ? String(a.id) : "";
+  if (!id && a.busca) {
+    const achados = filtrarConcursos(await carregarIndice(), { texto: String(a.busca), apenasAbertos: false });
+    if (!achados.length) return { erro: `Nenhum concurso no banco com "${a.busca}".` };
+    if (achados.length > 1 && achados.length <= 6) return { varios: achados.map((l) => ({ id: l.i, orgao: l.o, uf: l.u })) , dica: "Mais de um concurso combina; peça de novo com o id." };
+    id = achados[0].i;
+  }
+  if (!/^[a-f0-9]{8,32}$/.test(id)) return { erro: "Diga o id ou o nome do concurso." };
+  const snap = await db.doc(`concursos/${id}`).get();
+  if (!snap.exists) return { erro: "Concurso não encontrado no banco." };
+  const d = snap.data()!;
+  const br = (x?: string) => (x ? x.split("-").reverse().join("/") : undefined);
+  const ficha = (d.ficha ?? {}) as Record<string, any>;
+  const eventos = await snap.ref.collection("eventos").orderBy("em", "desc").limit(5).get();
+  return {
+    orgao: d.orgao,
+    local: [d.cidade, d.uf === "BR" ? "Nacional" : d.uf].filter(Boolean).join(" - "),
+    banca: d.banca ?? undefined,
+    situacao: situacaoAgora({ inscricaoInicio: d.inscricaoInicio, inscricaoFim: d.inscricaoFim, situacao: d.situacao }),
+    cronograma: ((d.cronograma ?? []) as Array<{ tipo: string; data: string; fim?: string; hora?: string }>).map(
+      (c) => `${NOME_DATA[c.tipo] ?? c.tipo}: ${br(c.data)}${c.fim && c.fim !== c.data ? ` a ${br(c.fim)}` : ""}${c.hora ? ` (até ${c.hora})` : ""}`,
+    ),
+    inscricoesListagem: `${br(d.inscricaoInicio) ?? "?"} a ${br(d.inscricaoFim) ?? "?"}`,
+    vagasTotal: d.vagas ?? (d.cadastroReserva ? "cadastro de reserva" : undefined),
+    cargos: ((d.cargosDetalhe ?? []) as Array<{ nome: string; vagas: number | null; cr?: boolean }>).slice(0, 40).map((c) => `${c.nome}: ${c.vagas ?? 0} vaga(s)${c.cr ? " + CR" : ""}`),
+    salario: ficha.salario ?? (d.salarioMax ? { max: d.salarioMax } : undefined),
+    taxa: ficha.taxa ?? undefined,
+    jornadaHoras: ficha.jornada ?? undefined,
+    regime: ficha.regime ?? undefined,
+    validadeMeses: ficha.validade?.meses,
+    validadeProrrogavel: ficha.validade?.prorrogavel,
+    etapas: ficha.etapas ?? undefined,
+    beneficios: ficha.beneficios ?? undefined,
+    escolaridade: (d.escolaridades ?? []).join(", "),
+    linhaDoTempo: eventos.docs.map((e) => `${e.get("em").toDate().toLocaleDateString("pt-BR")}: ${e.get("resumo")}`),
+    links: { ficha: `${URL_APP}/concursos/${id}`, ...(d.links ?? { fonte: d.link }) },
+    aviso: "Dados extraídos da notícia; confira o edital oficial.",
   };
 }
 

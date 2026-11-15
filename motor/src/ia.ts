@@ -1,6 +1,6 @@
 import { fetch, FormData } from "undici";
 import { db, URL_APP } from "./db.js";
-import { buscarConcursos } from "./bot.js";
+import { buscarConcursos, detalhesConcurso } from "./bot.js";
 import { alertaDeTeste, criarMonitor, lerPagina, listarMonitores, pausarOuRetomar, ultimasNovidades, verificarAgora } from "./bot.js";
 
 /**
@@ -78,6 +78,7 @@ const FERRAMENTAS = [
               enum: ["ti", "saude", "educacao", "seguranca", "juridico", "fiscal", "administrativo", "contabil", "engenharia", "assistencia_social", "operacional", "legislativo", "bancario"],
             },
             esfera: { type: "string", enum: ["federal", "estadual", "municipal"] },
+            banca: texto("Banca organizadora (Cebraspe, FGV, Vunesp…)."),
             salarioMin: { type: "number", description: "Salário mínimo desejado (R$)." },
             vagasMin: { type: "integer" },
             terminaAte: texto("Só os com inscrição terminando até esta data (AAAA-MM-DD)."),
@@ -86,6 +87,12 @@ const FERRAMENTAS = [
             limite: { type: "integer", description: "Quantos devolver (1 a 20, padrão 8)." },
           },
         },
+      },
+      {
+        name: "detalhes_concurso",
+        description:
+          "Ficha completa de um concurso do banco: cronograma (inscrições, isenção, boleto, provas), cargos com vagas, salários, taxa, banca, jornada, regime, validade, etapas, benefícios e linha do tempo (retificações). Use o id devolvido por buscar_concursos, ou um texto de busca.",
+        parameters: { type: "object", properties: { id: texto("id do concurso (de buscar_concursos)."), busca: texto("Nome do órgão, se não tiver o id.") } },
       },
       { name: "enviar_alerta_teste", description: "Envia um alerta de teste para o Telegram e para os aparelhos com notificações ativadas." },
     ],
@@ -122,6 +129,8 @@ async function executar(uid: string, chatId: number | null, nome: string, a: Rec
         return await criarMonitor(uid, a as Parameters<typeof criarMonitor>[1]);
       case "ler_pagina":
         return await lerPagina(String(a.url ?? ""), a.tipo ? String(a.tipo) : undefined);
+      case "detalhes_concurso":
+        return await detalhesConcurso(a);
       case "buscar_concursos":
         return await buscarConcursos(a);
       case "enviar_alerta_teste":

@@ -1,10 +1,10 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { db } from "./db.js";
 import { decodificar, fetchSeguro } from "./fetcher.js";
+import { diferencasFicha, lerFichaPci, VERSAO_FICHA, type Ficha } from "./ficha.js";
 import {
   enriquecer,
   lerAreas,
-  lerCargosDaNoticia,
   tokensDeBusca,
   hojeBrasilia,
   lerListagemPci,
@@ -50,7 +50,10 @@ export interface Linha {
   h: string; // hash do conteúdo
   b: string; // texto de busca normalizado
   au?: number; // ausente da fonte desde (ms)
-  dl?: string; // link da página já lida para completar os cargos
+  dl?: string; // link da página do concurso já lida (ficha)
+  dv?: number; // versão do extrator usada nessa leitura
+  bn?: string | null; // banca
+  pv?: string | null; // próxima prova (AAAA-MM-DD)
 }
 
 export function linhaDoIndice(c: Concurso, primeiroVisto: number): Linha {
@@ -87,6 +90,7 @@ export interface FiltrosConcurso {
   area?: string;
   esfera?: string;
   tipo?: string;
+  banca?: string;
   salarioMin?: number;
   vagasMin?: number;
   /** true (padrão): só inscrições abertas ou abrindo em breve. */
@@ -118,6 +122,7 @@ export function filtrarConcursos(linhas: Linha[], f: FiltrosConcurso, hoje = hoj
     if (f.area && !l.a.includes(normalizarTexto(f.area).replace(/ /g, "_"))) return false;
     if (f.esfera && l.e !== normalizarTexto(f.esfera)) return false;
     if (f.tipo && l.t !== f.tipo) return false;
+    if (f.banca && !normalizarTexto(l.bn ?? "").includes(normalizarTexto(f.banca))) return false;
     if (f.salarioMin && (l.s ?? 0) < f.salarioMin) return false;
     if (f.vagasMin && (l.v ?? 0) < f.vagasMin) return false;
     if (f.terminaAte && (!l.if || l.if > f.terminaAte)) return false;
@@ -255,7 +260,7 @@ export async function coletarConcursos() {
     // Na carga inicial nada é "novo" (p = 0); depois, p = quando apareceu pela primeira vez
     const linha = linhaDoIndice(c, antes?.p ?? (primeiraCarga ? 0 : agora));
     // Cargos completados pela página do concurso continuam valendo enquanto a notícia for a mesma
-    if (antes?.dl && antes.dl === c.link) Object.assign(linha, { cg: antes.cg, a: antes.a, b: antes.b, dl: antes.dl });
+    if (antes?.dl && antes.dl === c.link) Object.assign(linha, { cg: antes.cg, a: antes.a, b: antes.b, dl: antes.dl, dv: antes.dv, bn: antes.bn, pv: antes.pv });
     linhas.push(linha);
     const ref = db.doc(`concursos/${c.id}`);
     const doc = {
@@ -279,8 +284,9 @@ export async function coletarConcursos() {
     } else if (antes.h !== c.hash || antes.au) {
       contagem.alterados++;
       escritor.set(ref, doc, { merge: true });
-      if (antes.h !== c.hash) {
-        const { tipo, resumo } = descreverMudanca(antes, linha);
+      const mudanca = antes.h !== c.hash ? descreverMudanca(antes, linha) : null;
+      if (mudanca && mudanca.tipo !== "noticia") {
+        const { tipo, resumo } = mudanca;
         escritor.create(ref.collection("eventos").doc(), { tipo, resumo, em: Timestamp.fromMillis(agora), link: c.link });
       }
     } else {
@@ -312,38 +318,86 @@ export async function coletarConcursos() {
   return { total: novos.size, ...contagem };
 }
 
-// ---------- Completar cargos pela página do concurso ----------
+// ---------- Ficha do concurso (fase 2) ----------
 
 let detalhando = false;
 
+const NOME_NOTICIA: Record<Ficha["noticia"], string> = {
+  abertura: "Nova notícia",
+  retificacao: "Retificação",
+  prorrogacao: "Prorrogação",
+  reabertura: "Reabertura das inscrições",
+  suspensao: "Suspensão",
+  resultado: "Resultado/convocação",
+  outra: "Nova notícia",
+};
+const TIPOS_PROVA = new Set(["prova_objetiva", "prova_discursiva", "prova_pratica", "taf", "titulos", "avaliacao_psicologica", "prova"]);
+
+/** Próxima prova a partir de hoje (ou a última, se todas já passaram). */
+function proximaProva(f: Ficha, hoje: string) {
+  const provas = f.cronograma.filter((c) => TIPOS_PROVA.has(c.tipo)).map((c) => c.data).sort();
+  return provas.find((d) => d >= hoje) ?? provas.at(-1) ?? null;
+}
+
 /**
- * Para concursos que a listagem mostra só como "Vários cargos", abre a página do concurso (uma vez
- * por notícia), lê a lista "Cargo (N vagas)" e atualiza o banco e o índice. Roda em segundo plano,
- * devagar (1 página a cada 2,5 s), e salva o progresso a cada 25 páginas.
+ * Abre a página de cada concurso (uma vez por notícia, ou de novo quando o extrator melhora),
+ * extrai a ficha completa e atualiza banco + índice. Quando a notícia muda (ex.: retificação),
+ * compara com a ficha anterior e registra um evento com o que mudou.
+ * Segundo plano, 1 página a cada 2,5 s, progresso salvo a cada 25.
  */
-export async function completarCargos(max = 300) {
+export async function detalharConcursos(max = 300) {
   if (detalhando || !indice) return 0;
   detalhando = true;
   let feitos = 0;
+  const hoje = hojeBrasilia();
   try {
-    const pendentes = indice.linhas.filter((l) => l.cg === "Vários cargos" && l.dl !== l.l && !l.au).slice(0, max);
+    const pendentes = indice.linhas
+      .filter((l) => !l.au && (l.dl !== l.l || (l.dv ?? 0) < VERSAO_FICHA))
+      .sort((a, b) => b.p - a.p) // novos primeiro
+      .slice(0, max);
     for (const l of pendentes) {
       try {
         const r = await fetchSeguro(l.l);
-        const cargos = r.status === 200 ? lerCargosDaNoticia(r.corpo) : [];
         const atual = indice.linhas.find((x) => x.i === l.i);
         if (!atual) continue;
-        atual.dl = l.l;
-        if (cargos.length) {
-          const nomes = cargos.map((c) => c.nome);
+        if (r.status !== 200) {
+          Object.assign(atual, { dl: l.l, dv: VERSAO_FICHA });
+          continue;
+        }
+        const ficha = lerFichaPci(r.corpo);
+        const ref = db.doc(`concursos/${l.i}`);
+        const anterior = (await ref.get()).get("ficha") as Ficha | undefined;
+        const nomes = ficha.cargos.map((c) => c.nome);
+        await ref.set(
+          {
+            ficha,
+            banca: ficha.banca,
+            cronograma: ficha.cronograma,
+            ...(nomes.length ? { cargosDetalhe: ficha.cargos, cargos: nomes, variosCargos: false, areas: lerAreas(nomes, l.o) } : {}),
+            links: { fonte: l.l, ...(ficha.siteInscricao ? { inscricao: `https://${ficha.siteInscricao}` } : {}) },
+            detalhadoEm: Timestamp.now(),
+          },
+          { merge: true },
+        );
+        // Notícia nova sobre um concurso já lido: evento com o que mudou
+        if (anterior && l.dl && l.dl !== l.l) {
+          const mudancas = diferencasFicha(anterior, ficha);
+          await ref.collection("eventos").add({
+            tipo: ficha.noticia === "abertura" || ficha.noticia === "outra" ? "noticia" : ficha.noticia,
+            resumo: [NOME_NOTICIA[ficha.noticia], ...mudancas].join(" · "),
+            em: Timestamp.now(),
+            link: l.l,
+          });
+        }
+        if (nomes.length) {
           atual.cg = nomes.join(", ").slice(0, 400);
           atual.a = lerAreas(nomes, atual.o);
-          atual.b = tokensDeBusca(atual.o, atual.c, nomes.join(" "), atual.u).join(" ");
-          await db.doc(`concursos/${l.i}`).set(
-            { cargosDetalhe: cargos, cargos: nomes, variosCargos: false, areas: atual.a, detalhadoEm: Timestamp.now() },
-            { merge: true },
-          );
         }
+        atual.bn = ficha.banca;
+        atual.pv = proximaProva(ficha, hoje);
+        atual.b = tokensDeBusca(atual.o, atual.c, nomes.join(" ") || atual.cg, atual.u, ficha.banca).join(" ");
+        atual.dl = l.l;
+        atual.dv = VERSAO_FICHA;
         feitos++;
         if (feitos % 25 === 0) await gravarIndice(indice.linhas);
       } catch (e) {
@@ -352,7 +406,7 @@ export async function completarCargos(max = 300) {
       await new Promise((ok) => setTimeout(ok, 2_500));
     }
     if (feitos % 25 !== 0) await gravarIndice(indice.linhas);
-    if (feitos) console.log(`[Concursos] cargos completados em ${feitos} concursos`);
+    if (feitos) console.log(`[Concursos] fichas lidas: ${feitos}`);
   } finally {
     detalhando = false;
   }
@@ -376,7 +430,7 @@ export async function coletarSeVencido(forcar = false) {
   try {
     const r = await coletarConcursos();
     console.log(`[Concursos] ${r.total} na fonte · ${r.novos} novos · ${r.alterados} alterados · ${r.arquivados} arquivados`);
-    void completarCargos().catch((e) => console.warn("[Concursos] completar cargos:", String(e))); // segundo plano
+    void detalharConcursos().catch((e) => console.warn("[Concursos] fichas:", String(e))); // segundo plano
     return r;
   } catch (e) {
     console.warn("[Concursos] coleta falhou:", String(e));

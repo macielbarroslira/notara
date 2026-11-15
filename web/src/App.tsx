@@ -12,6 +12,7 @@ import { Login } from "./pages/Login";
 import { MonitorDetalhe } from "./pages/MonitorDetalhe";
 import { MonitorForm } from "./pages/MonitorForm";
 import { Concursos } from "./pages/Concursos";
+import { ConcursoFicha } from "./pages/ConcursoFicha";
 import { Monitores } from "./pages/Monitores";
 import { Painel } from "./pages/Painel";
 
@@ -46,6 +47,7 @@ export function App() {
             <Route index element={<Painel />} />
             <Route path="monitores" element={<Monitores />} />
             <Route path="concursos" element={<Concursos />} />
+            <Route path="concursos/:id" element={<ConcursoFicha />} />
             <Route path="monitores/novo" element={<MonitorForm />} />
             <Route path="monitores/:id" element={<MonitorDetalhe />} />
             <Route path="monitores/:id/editar" element={<MonitorForm key="editar" />} />

@@ -23,6 +23,8 @@ export interface LinhaConcurso {
   p: number; // primeira vez visto (ms)
   b: string; // tokens de busca
   au?: number; // ausente da fonte desde
+  bn?: string | null; // banca
+  pv?: string | null; // próxima prova
 }
 
 export interface FiltrosConcurso {

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   enriquecer,
-  lerCargosDaNoticia,
   lerAreas,
   lerCidade,
   lerDinheiro,
@@ -14,6 +13,7 @@ import {
   situacaoAgora,
 } from "./concursos.js";
 import { filtrarConcursos, linhaDoIndice } from "./banco.js";
+import { datasDoTexto, diferencasFicha, lerFichaPci } from "./ficha.js";
 
 // Amostra com a mesma estrutura da listagem do PCI (dados fictícios)
 const HTML = `
@@ -95,13 +95,46 @@ test("concursos: busca no índice com filtros", () => {
   assert.equal(filtrarConcursos(linhas, { texto: "itu", apenasAbertos: false }, hoje).length, 1);
 });
 
-test("concursos: cargos da página do concurso", () => {
-  const html = `<article id="noticia"><p>Cargos:</p><ul>
-    <li>Enfermeiro (24 vagas)</li><li>Técnico em Enfermagem (1.074 vagas)</li>
-    <li>Professor de Matemática (cadastro reserva)</li><li>Enfermeiro (24 vagas)</li><li>Leia também: outra notícia</li></ul></article>`;
-  assert.deepEqual(lerCargosDaNoticia(html), [
-    { nome: "Enfermeiro", vagas: 24 },
-    { nome: "Técnico em Enfermagem", vagas: 1074 },
-    { nome: "Professor de Matemática", vagas: null },
+test("ficha: extrai cronograma, taxa, salário, banca, regime, validade e cargos", () => {
+  const html = `<article id="noticia"><h1>Prefeitura de Exemplo - MG retifica concurso público</h1>
+    <p>Quarta-feira, 4 de novembro de 2026</p>
+    <p>A Prefeitura de Exemplo abriu concurso. Segundo o edital, as oportunidades são para os cargos de:</p>
+    <ul><li>Enfermeiro (24 vagas)</li><li>Analista - Área: TI (4 vagas imediatas + 9 CR)</li><li>Professor (CR)</li></ul>
+    <p>A jornada é de 30 horas semanais para Enfermeiro e de 40 horas semanais para os demais. As remunerações variam de R$ 2.500,00 a R$ 7.950,00. Os benefícios previstos são auxílio-alimentação de R$ 600,00 e vale-transporte.</p>
+    <p>As inscrições serão realizadas pelo site www.vunesp.com.br, das 10h do dia 10 de novembro de 2026 até às 23h59 de 10 de dezembro de 2026. A taxa é de R$ 80,00 para nível médio e de R$ 120,00 para nível superior, com pagamento até 11 de dezembro de 2026. Candidatos do CadÚnico poderão solicitar isenção nos dias 10 e 11 de novembro de 2026.</p>
+    <p>A prova objetiva está prevista para o dia 17 de janeiro de 2027. O teste de aptidão física está previsto para 21 de fevereiro de 2027. O regime será estatutário. O concurso terá validade de dois anos, podendo ser prorrogado por igual período.</p>
+    <p>Dê o play e acompanhe esta notícia no formato podcast.</p></article>`;
+  const f = lerFichaPci(html);
+  assert.equal(f.noticia, "retificacao");
+  assert.equal(f.publicadoEm, "2026-11-04");
+  assert.equal(f.banca, "Vunesp");
+  assert.equal(f.siteInscricao, "www.vunesp.com.br");
+  assert.deepEqual(f.cronograma, [
+    { tipo: "inscricao", data: "2026-11-10", fim: "2026-12-10", hora: "23h59" },
+    { tipo: "isencao", data: "2026-11-10", fim: "2026-11-11" },
+    { tipo: "pagamento", data: "2026-12-11" },
+    { tipo: "prova_objetiva", data: "2027-01-17" },
+    { tipo: "taf", data: "2027-02-21" },
   ]);
+  assert.deepEqual(f.taxa, { min: 80, max: 120 });
+  assert.deepEqual(f.salario, { min: 2500, max: 7950 });
+  assert.deepEqual(f.jornada, { min: 30, max: 40 });
+  assert.equal(f.regime, "estatutario");
+  assert.deepEqual(f.validade, { meses: 24, prorrogavel: true });
+  assert.ok(f.etapas.includes("Prova objetiva") && f.etapas.includes("Teste físico (TAF)"));
+  assert.deepEqual(f.beneficios, ["auxílio-alimentação", "vale-transporte"]);
+  assert.deepEqual(f.cargos, [
+    { nome: "Enfermeiro", vagas: 24, cr: false },
+    { nome: "Analista - Área: TI", vagas: 4, cr: true },
+    { nome: "Professor", vagas: null, cr: true },
+  ]);
+});
+
+test("ficha: datas em português e diferenças entre versões", () => {
+  assert.deepEqual(datasDoTexto("de 20 de dezembro a 10 de janeiro de 2027"), ["2026-12-20", "2027-01-10"]);
+  assert.deepEqual(datasDoTexto("nos dias 26 e 27 de outubro de 2026"), ["2026-10-26", "2026-10-27"]);
+  assert.deepEqual(datasDoTexto("até 1º de março de 2027"), ["2027-03-01"]);
+  const base = lerFichaPci(`<article id="noticia"><ul><li>Cargo A (2 vagas)</li></ul><p>As inscrições vão de 1 de novembro de 2026 a 30 de novembro de 2026. A prova objetiva está prevista para 10 de janeiro de 2027.</p></article>`);
+  const nova = lerFichaPci(`<article id="noticia"><ul><li>Cargo A (5 vagas)</li></ul><p>As inscrições foram prorrogadas até o dia 15 de dezembro de 2026. A prova objetiva está prevista para 24 de janeiro de 2027.</p></article>`);
+  assert.deepEqual(diferencasFicha(base, nova), ["Inscrições: 30/11/2026 → 15/12/2026", "Prova objetiva: 10/01/2027 → 24/01/2027", "Vagas: 2 → 5"]);
 });

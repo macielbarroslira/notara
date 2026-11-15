@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   AREAS,
   dataCurta,
@@ -55,14 +55,19 @@ function CartaoConcurso({ l, hoje }: { l: LinhaConcurso; hoje: string }) {
   const novo = Date.now() - l.p < 3 * 86_400_000;
   const local = [l.c, l.u === "BR" ? "Nacional" : nomeUf.get(l.u) ?? l.u].filter(Boolean).join(" · ");
   return (
-    <article className="flex flex-col gap-2.5 rounded-card bg-card p-4 shadow-card sm:p-5">
+    <article className="relative flex flex-col gap-2.5 rounded-card bg-card p-4 shadow-card transition-shadow hover:shadow-[0_0_0_1px_var(--line-2),0_8px_24px_-12px_rgba(17,17,22,0.25)] sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[15px] leading-snug font-medium text-ink">{l.o}</h3>
+          <h3 className="text-[15px] leading-snug font-medium text-ink">
+            <Link to={`/concursos/${l.i}`} className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none">
+              {l.o}
+            </Link>
+          </h3>
           <p className="mt-0.5 text-[13px] text-muted">
             {local}
             {l.t === "processo_seletivo" && " · processo seletivo"}
             {l.t === "residencia" && " · residência"}
+            {l.bn && ` · ${l.bn}`}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -82,11 +87,12 @@ function CartaoConcurso({ l, hoje }: { l: LinhaConcurso; hoje: string }) {
         <span className="font-mono text-xs text-faint">
           Inscrições {l.ii ? `${dataCurta(l.ii)} a ` : "até "}
           {dataCurta(l.if)}
+          {l.pv && l.pv >= hoje && ` · prova ${dataCurta(l.pv)}`}
           {l.a.length > 0 && ` · ${l.a.map((a) => nomeArea.get(a) ?? a).join(", ")}`}
         </span>
-        <a href={l.l} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
-          Ver detalhes <Icone nome="externo" className="size-3.5" />
-        </a>
+        <span className="inline-flex items-center gap-1 text-[13px] font-medium text-accent">
+          Ver ficha <Icone nome="seta" className="size-3.5" />
+        </span>
       </div>
     </article>
   );

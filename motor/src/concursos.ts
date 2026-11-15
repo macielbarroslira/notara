@@ -250,21 +250,3 @@ export function situacaoAgora(c: { inscricaoInicio: string | null; inscricaoFim:
 
 export const hojeBrasilia = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }); // AAAA-MM-DD
 
-/** Cargos da página do concurso no PCI: itens "Enfermeiro (24 vagas)" / "Professor (cadastro reserva)". */
-export function lerCargosDaNoticia(html: string): Array<{ nome: string; vagas: number | null }> {
-  const $ = cheerio.load(html);
-  const artigo = $("article#noticia").first();
-  const cargos: Array<{ nome: string; vagas: number | null }> = [];
-  const vistos = new Set<string>();
-  (artigo.length ? artigo : $("body")).find("li").each((_, el) => {
-    const t = $(el).text().replace(/\s+/g, " ").trim();
-    const m = /^(.{2,120}?)\s*\((?:\s*(\d[\d.]*)\s*vagas?|[^)]*(?:cadastro|reserva|CR)[^)]*)[^)]*\)/i.exec(t);
-    if (!m) return;
-    const nome = m[1].replace(/[:–-]\s*$/, "").trim();
-    const chave = normalizarTexto(nome);
-    if (!chave || vistos.has(chave)) return;
-    vistos.add(chave);
-    cargos.push({ nome, vagas: m[2] ? Number(m[2].replace(/\./g, "")) : null });
-  });
-  return cargos.slice(0, 120);
-}
