@@ -42,13 +42,13 @@ export function AlteracaoDetalhe() {
   }, [alt?.id, alt?.monitorId, alt?.versaoAnterior, alt?.versaoNova, uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (alt === undefined) return <Carregando />;
-  if (alt === null) return <Vazio titulo="Alteração não encontrada"><Link to="/alteracoes" className="text-orange-900 underline">Voltar</Link></Vazio>;
+  if (alt === null) return <Vazio titulo="Alteração não encontrada"><Link to="/alteracoes" className="text-accent underline">Voltar</Link></Vazio>;
 
   const darFeedback = (feedback: "util" | "falso") => updateDoc(doc(db, `users/${uid}/alteracoes/${alt.id}`), { feedback });
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Link to="/alteracoes" className="mb-3 inline-flex items-center gap-1 text-sm text-stone-600 hover:text-orange-900">
+      <Link to="/alteracoes" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <Icone nome="voltar" className="size-4" /> Alterações
       </Link>
       <Cabecalho
@@ -67,19 +67,19 @@ export function AlteracaoDetalhe() {
       />
 
       <Cartao className="mb-4">
-        <p className="text-lg font-medium text-stone-900">{alt.resumo}</p>
+        <p className="text-lg font-medium text-ink">{alt.resumo}</p>
         {alt.motivos && alt.motivos.length > 0 && (
-          <p className="mt-2 text-sm text-stone-600">Condições atendidas: {alt.motivos.join(" · ")}</p>
+          <p className="mt-2 text-sm text-muted">Condições atendidas: {alt.motivos.join(" · ")}</p>
         )}
       </Cartao>
 
       {alt.ineditas && alt.ineditas.length > 0 && (
-        <Cartao className="mb-4 !bg-amber-50 ring-amber-200">
-          <h2 className="mb-2 font-semibold text-amber-950">✨ Novidades ({alt.ineditas.length})</h2>
-          <ul className="space-y-1.5 text-sm text-stone-800">
+        <Cartao className="mb-4 !bg-warn-soft ring-warn/30">
+          <h2 className="mb-2 font-semibold text-warn">✨ Novidades ({alt.ineditas.length})</h2>
+          <ul className="space-y-1.5 text-sm text-ink">
             {alt.ineditas.map((l, i) => (
               <li key={i} className="flex gap-2">
-                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                 <span className="break-words">{l}</span>
               </li>
             ))}
@@ -94,12 +94,12 @@ export function AlteracaoDetalhe() {
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <p className="mb-1 text-xs font-semibold text-emerald-700">ADICIONADO</p>
-              <pre className="max-h-96 overflow-auto rounded-xl bg-emerald-50 p-3 text-sm whitespace-pre-wrap break-words">{alt.adicionado || "—"}</pre>
+              <p className="mb-1 text-xs font-semibold text-ok">ADICIONADO</p>
+              <pre className="max-h-96 overflow-auto rounded-xl bg-ok-soft p-3 text-sm whitespace-pre-wrap break-words">{alt.adicionado || "—"}</pre>
             </div>
             <div>
-              <p className="mb-1 text-xs font-semibold text-red-700">REMOVIDO</p>
-              <pre className="max-h-96 overflow-auto rounded-xl bg-red-50 p-3 text-sm whitespace-pre-wrap break-words">{alt.removido || "—"}</pre>
+              <p className="mb-1 text-xs font-semibold text-danger">REMOVIDO</p>
+              <pre className="max-h-96 overflow-auto rounded-xl bg-danger-soft p-3 text-sm whitespace-pre-wrap break-words">{alt.removido || "—"}</pre>
             </div>
           </div>
         )}
@@ -113,15 +113,15 @@ export function AlteracaoDetalhe() {
       )}
 
       <Cartao className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-stone-600">Este alerta foi útil?</p>
+        <p className="text-sm text-muted">Este alerta foi útil?</p>
         <div className="flex gap-2">
           <Botao variante={alt.feedback === "util" ? "primario" : "secundario"} onClick={() => darFeedback("util")}>👍 Útil</Botao>
           <Botao variante={alt.feedback === "falso" ? "primario" : "secundario"} onClick={() => darFeedback("falso")}>👎 Alerta falso</Botao>
         </div>
       </Cartao>
       {alt.feedback === "falso" && (
-        <p className="mt-3 text-sm text-stone-600">
-          Dica: em <Link className="text-orange-900 underline" to={`/monitores/${alt.monitorId}/editar`}>Editar › Opções avançadas</Link>, use
+        <p className="mt-3 text-sm text-muted">
+          Dica: em <Link className="text-accent underline" to={`/monitores/${alt.monitorId}/editar`}>Editar › Opções avançadas</Link>, use
           “Ignorar textos” ou “Excluir elementos” para evitar esse tipo de alerta.
         </p>
       )}

@@ -9,20 +9,20 @@ import type { Alteracao } from "../types";
 
 export function ListaAlteracoes({ itens, semNome }: { itens: Alteracao[]; semNome?: boolean }) {
   return (
-    <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200">
+    <ul className="divide-y divide-line overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-line">
       {itens.map((a) => (
         <li key={a.id}>
-          <Link to={`/alteracoes/${a.id}`} className="flex gap-3 px-4 py-3 hover:bg-orange-50/50">
-            <span className={`mt-2 size-2.5 shrink-0 rounded-full ${a.lida ? "bg-transparent" : "bg-amber-500"}`} />
+          <Link to={`/alteracoes/${a.id}`} className="flex gap-3 px-4 py-3 hover:bg-panel/50">
+            <span className={`mt-2 size-2.5 shrink-0 rounded-full ${a.lida ? "bg-transparent" : "bg-accent"}`} />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline justify-between gap-2">
-                <p className={`truncate ${a.lida ? "text-stone-700" : "font-semibold text-stone-900"}`}>
+                <p className={`truncate ${a.lida ? "text-ink-2" : "font-semibold text-ink"}`}>
                   {semNome ? relativo(a.criadoEm) : a.monitorNome}
                 </p>
-                {!semNome && <span className="shrink-0 text-xs text-stone-500">{relativo(a.criadoEm)}</span>}
+                {!semNome && <span className="shrink-0 text-xs text-muted">{relativo(a.criadoEm)}</span>}
               </div>
-              <p className="line-clamp-2 text-sm text-stone-600">{a.resumo}</p>
-              {!semNome && <p className="mt-0.5 truncate text-xs text-stone-400">{dominio(a.url)}</p>}
+              <p className="line-clamp-2 text-sm text-muted">{a.resumo}</p>
+              {!semNome && <p className="mt-0.5 truncate text-xs text-faint">{dominio(a.url)}</p>}
             </div>
           </Link>
         </li>
@@ -60,7 +60,7 @@ export function Alteracoes() {
           <button
             key={String(v)}
             onClick={() => setSoNaoLidas(v as boolean)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${soNaoLidas === v ? "bg-orange-900 text-white" : "bg-white text-stone-700 ring-1 ring-stone-300"}`}
+            className={`rounded-full px-3 py-1.5 text-sm font-medium ${soNaoLidas === v ? "bg-ink text-on-ink" : "bg-card text-ink-2 ring-1 ring-line-2"}`}
           >
             {nome as string}
           </button>

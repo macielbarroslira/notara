@@ -29,8 +29,8 @@ const linhas = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean)
 function Secao({ titulo, sub, children }: { titulo: string; sub?: string; children: ReactNode }) {
   return (
     <Cartao>
-      <h2 className="font-semibold text-stone-900">{titulo}</h2>
-      {sub && <p className="mb-1 text-sm text-stone-500">{sub}</p>}
+      <h2 className="font-semibold text-ink">{titulo}</h2>
+      {sub && <p className="mb-1 text-sm text-muted">{sub}</p>}
       <div className="mt-4 space-y-4">{children}</div>
     </Cartao>
   );
@@ -206,7 +206,7 @@ export function MonitorForm() {
       />
     )}
     <form onSubmit={salvar} className="mx-auto max-w-3xl">
-      <Link to={editando ? `/monitores/${id}` : "/"} className="mb-3 inline-flex items-center gap-1 text-sm text-stone-600 hover:text-orange-900">
+      <Link to={editando ? `/monitores/${id}` : "/"} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <Icone nome="voltar" className="size-4" /> Voltar
       </Link>
       <Cabecalho titulo={editando ? "Editar monitor" : "Novo monitor"} />
@@ -233,17 +233,17 @@ export function MonitorForm() {
           </Campo>
 
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-stone-700">Tipo</span>
+            <span className="mb-1.5 block text-sm font-medium text-ink-2">Tipo</span>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {TIPOS.map((t) => (
                 <button
                   type="button"
                   key={t.id}
                   onClick={() => set("tipo", t.id)}
-                  className={`rounded-xl p-3 text-left ring-1 transition ${m.tipo === t.id ? "bg-orange-50 ring-2 ring-orange-700" : "bg-white ring-stone-300 hover:ring-stone-400"}`}
+                  className={`rounded-xl p-3 text-left ring-1 transition ${m.tipo === t.id ? "bg-panel ring-2 ring-accent" : "bg-card ring-line-2 hover:ring-line-3"}`}
                 >
                   <span className="block text-sm font-semibold">{t.nome}</span>
-                  <span className="block text-xs text-stone-500">{t.desc}</span>
+                  <span className="block text-xs text-muted">{t.desc}</span>
                 </button>
               ))}
             </div>
@@ -253,14 +253,14 @@ export function MonitorForm() {
             <button
               type="button"
               onClick={abrirSeletorVisual}
-              className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/60 p-3 text-left hover:bg-orange-50"
+              className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-line-3 bg-panel/60 p-3 text-left hover:bg-panel"
             >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-orange-900 text-white">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-ink text-on-ink">
                 <Icone nome="mira" />
               </span>
               <span>
-                <span className="block text-sm font-semibold text-orange-950">Escolher na página</span>
-                <span className="block text-xs text-stone-600">Veja a página e toque no trecho que quer monitorar — sem precisar de seletor CSS.</span>
+                <span className="block text-sm font-semibold text-ink">Escolher na página</span>
+                <span className="block text-xs text-muted">Veja a página e toque no trecho que quer monitorar — sem precisar de seletor CSS.</span>
               </span>
             </button>
           )}
@@ -275,17 +275,17 @@ export function MonitorForm() {
           )}
 
           {(m.tipo === "elemento" || m.tipo === "pagina") && (
-            <div className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
+            <div className="rounded-xl bg-card-2 p-3 ring-1 ring-line">
               <label className="flex items-start gap-3 text-sm">
                 <input
                   type="checkbox"
                   checked={m.usarNavegador}
                   onChange={(e) => set("usarNavegador", e.target.checked)}
-                  className="mt-0.5 size-5 shrink-0 accent-orange-800"
+                  className="mt-0.5 size-5 shrink-0 accent-accent"
                 />
                 <span>
                   <span className="font-medium">Carregar como navegador</span>
-                  <span className="block text-xs text-stone-500">
+                  <span className="block text-xs text-muted">
                     Para sites que montam o conteúdo com JavaScript (lojas, apps). Também salva um <b>screenshot</b> de cada versão para comparação visual.
                   </span>
                 </span>
@@ -316,11 +316,11 @@ export function MonitorForm() {
           )}
 
           {previa && (
-            <div className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
-              <p className="mb-2 text-xs text-stone-500">
+            <div className="rounded-xl bg-card-2 p-3 ring-1 ring-line">
+              <p className="mb-2 text-xs text-muted">
                 Prévia · HTTP {previa.status} · {previa.tamanho.toLocaleString("pt-BR")} caracteres{previa.titulo ? ` · ${previa.titulo}` : ""}
               </p>
-              <pre className="max-h-64 overflow-auto text-sm whitespace-pre-wrap break-words text-stone-800">{previa.texto || "(vazio)"}</pre>
+              <pre className="max-h-64 overflow-auto text-sm whitespace-pre-wrap break-words text-ink">{previa.texto || "(vazio)"}</pre>
             </div>
           )}
 
@@ -337,8 +337,8 @@ export function MonitorForm() {
             </Campo>
           </div>
 
-          <div className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
-            <span className="block text-sm font-medium text-stone-700">Dias e horários (horário de Brasília)</span>
+          <div className="rounded-xl bg-card-2 p-3 ring-1 ring-line">
+            <span className="block text-sm font-medium text-ink-2">Dias e horários (horário de Brasília)</span>
             <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Dias da semana">
               {DIAS_SEMANA.map((d, i) => {
                 const dias = m.agenda.dias;
@@ -353,16 +353,16 @@ export function MonitorForm() {
                       const novos = ligado ? atuais.filter((x) => x !== i) : [...atuais, i].sort();
                       setAgenda({ dias: novos.length === 7 ? [] : novos });
                     }}
-                    className={`size-9 rounded-full text-sm font-semibold ${ligado ? "bg-orange-900 text-white" : "bg-white text-stone-500 ring-1 ring-stone-300"}`}
+                    className={`size-9 rounded-full text-sm font-semibold ${ligado ? "bg-ink text-on-ink" : "bg-card text-muted ring-1 ring-line-2"}`}
                   >
                     {d}
                   </button>
                 );
               })}
-              <button type="button" onClick={() => setAgenda({ dias: [1, 2, 3, 4, 5] })} className="ml-1 rounded-full px-3 text-xs font-medium text-orange-900 ring-1 ring-orange-200 hover:bg-orange-50">
+              <button type="button" onClick={() => setAgenda({ dias: [1, 2, 3, 4, 5] })} className="ml-1 rounded-full px-3 text-xs font-medium text-accent ring-1 ring-line-2 hover:bg-panel">
                 Dias úteis
               </button>
-              <button type="button" onClick={() => setAgenda({ dias: [] })} className="rounded-full px-3 text-xs font-medium text-orange-900 ring-1 ring-orange-200 hover:bg-orange-50">
+              <button type="button" onClick={() => setAgenda({ dias: [] })} className="rounded-full px-3 text-xs font-medium text-accent ring-1 ring-line-2 hover:bg-panel">
                 Todos
               </button>
             </div>
@@ -376,9 +376,9 @@ export function MonitorForm() {
                 {HORAS.slice(1).map((h) => <option key={h}>{h}</option>)}
               </select>
             </div>
-            {m.agenda.fim <= m.agenda.inicio && <p className="mt-2 text-xs text-red-700">O horário final precisa ser depois do inicial.</p>}
+            {m.agenda.fim <= m.agenda.inicio && <p className="mt-2 text-xs text-danger">O horário final precisa ser depois do inicial.</p>}
             <label className="mt-3 flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={m.agenda.aleatorio} onChange={(e) => setAgenda({ aleatorio: e.target.checked })} className="size-4 accent-orange-800" />
+              <input type="checkbox" checked={m.agenda.aleatorio} onChange={(e) => setAgenda({ aleatorio: e.target.checked })} className="size-4 accent-accent" />
               Variar o horário um pouco (até +20% do intervalo)
             </label>
           </div>
@@ -389,7 +389,7 @@ export function MonitorForm() {
 
           {m.tipo !== "uptime" && m.tipo !== "json" && (
             <div>
-              <button type="button" onClick={() => setAvancado(!avancado)} className="text-sm font-medium text-orange-900 hover:underline">
+              <button type="button" onClick={() => setAvancado(!avancado)} className="text-sm font-medium text-accent hover:underline">
                 {avancado ? "− Ocultar opções avançadas" : "+ Opções avançadas (excluir partes, ignorar ruído)"}
               </button>
               {avancado && (
@@ -408,7 +408,7 @@ export function MonitorForm() {
 
         <Secao titulo="2. Quando avisar" sub="Sem condições, você recebe um alerta a cada mudança.">
           {m.regras.itens.map((r, i) => (
-            <div key={i} className="flex flex-col gap-2 rounded-xl bg-stone-50 p-2 ring-1 ring-stone-200 sm:flex-row sm:items-center">
+            <div key={i} className="flex flex-col gap-2 rounded-xl bg-card-2 p-2 ring-1 ring-line sm:flex-row sm:items-center">
               <select
                 value={r.tipo}
                 onChange={(e) => setRegras(m.regras.itens.map((x, j) => (j === i ? { ...x, tipo: e.target.value as TipoRegra } : x)))}
@@ -438,7 +438,7 @@ export function MonitorForm() {
                 type="button"
                 disabled={m.regras.itens.length >= 10}
                 onClick={() => setRegras([...m.regras.itens, { tipo: "nunca_visto", valor: "" }])}
-                className="rounded-full bg-amber-50 px-3 py-1.5 text-sm text-amber-900 ring-1 ring-amber-200 hover:bg-amber-100"
+                className="rounded-full bg-warn-soft px-3 py-1.5 text-sm text-warn ring-1 ring-warn/30 hover:bg-warn-soft"
                 title="Ideal para listas de editais e notícias: ignora mudanças de ordem"
               >
                 ✨ Só avisar de itens novos
@@ -461,8 +461,8 @@ export function MonitorForm() {
 
         <Secao titulo="3. Como avisar">
           <label className="flex items-center gap-3 text-sm">
-            <input type="checkbox" checked={m.acoes.push} onChange={(e) => setAcao("push", e.target.checked)} className="size-5 accent-orange-800" />
-            Notificação push nos meus aparelhos <Link to="/configuracoes" className="text-orange-900 underline">(ativar)</Link>
+            <input type="checkbox" checked={m.acoes.push} onChange={(e) => setAcao("push", e.target.checked)} className="size-5 accent-accent" />
+            Notificação push nos meus aparelhos <Link to="/configuracoes" className="text-accent underline">(ativar)</Link>
           </label>
           <Campo rotulo="E-mail" dica="Deixe vazio para não receber por e-mail.">
             <input type="email" value={m.acoes.email} onChange={(e) => setAcao("email", e.target.value)} className={classeInput} />
@@ -481,8 +481,8 @@ export function MonitorForm() {
               <input type="url" value={m.acoes.webhook} onChange={(e) => setAcao("webhook", e.target.value)} className={classeInput} />
             </Campo>
           </div>
-          <div className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
-            <span className="block text-sm font-medium text-stone-700">Se o site falhar</span>
+          <div className="rounded-xl bg-card-2 p-3 ring-1 ring-line">
+            <span className="block text-sm font-medium text-ink-2">Se o site falhar</span>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
               <span>Avisar após</span>
               <select
@@ -501,18 +501,18 @@ export function MonitorForm() {
                   type="checkbox"
                   checked={m.aoErrar.avisarRecuperacao}
                   onChange={(e) => setM((x) => ({ ...x, aoErrar: { ...x.aoErrar, avisarRecuperacao: e.target.checked } }))}
-                  className="size-4 accent-orange-800"
+                  className="size-4 accent-accent"
                 />
                 Avisar também quando voltar a funcionar
               </label>
             )}
-            <p className="mt-2 text-xs text-stone-500">Os avisos de erro usam os mesmos canais acima (push, e-mail, Slack…).</p>
+            <p className="mt-2 text-xs text-muted">Os avisos de erro usam os mesmos canais acima (push, e-mail, Slack…).</p>
           </div>
         </Secao>
 
         <Cartao className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <label className="flex items-center gap-3 text-sm font-medium">
-            <input type="checkbox" checked={m.ativo} onChange={(e) => set("ativo", e.target.checked)} className="size-5 accent-orange-800" />
+            <input type="checkbox" checked={m.ativo} onChange={(e) => set("ativo", e.target.checked)} className="size-5 accent-accent" />
             Monitor ativo
           </label>
           <Botao type="submit" variante="primario" icone="check" carregando={salvando} className="sm:w-48">

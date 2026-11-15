@@ -36,7 +36,7 @@ export function MonitorDetalhe() {
   const [selB, setSelB] = useState<string | null>(null);
 
   if (carregando) return <Carregando />;
-  if (!monitor || !id) return <Vazio titulo="Monitor não encontrado"><Link to="/" className="text-orange-900 underline">Voltar</Link></Vazio>;
+  if (!monitor || !id) return <Vazio titulo="Monitor não encontrado"><Link to="/" className="text-accent underline">Voltar</Link></Vazio>;
 
   const ref = doc(db, `users/${uid}/monitores/${id}`);
 
@@ -76,13 +76,13 @@ export function MonitorDetalhe() {
 
   return (
     <>
-      <Link to="/" className="mb-3 inline-flex items-center gap-1 text-sm text-stone-600 hover:text-orange-900">
+      <Link to="/" className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <Icone nome="voltar" className="size-4" /> Monitores
       </Link>
       <Cabecalho
         titulo={<span className="break-words">{monitor.nome}</span>}
         sub={
-          <a href={monitor.url} target="_blank" rel="noreferrer noopener" className="inline-flex max-w-full items-center gap-1 break-all text-orange-900 hover:underline">
+          <a href={monitor.url} target="_blank" rel="noreferrer noopener" className="inline-flex max-w-full items-center gap-1 break-all text-accent hover:underline">
             {monitor.url} <Icone nome="externo" className="size-3.5 shrink-0" />
           </a>
         }
@@ -106,8 +106,8 @@ export function MonitorDetalhe() {
           ["Próxima", monitor.ativo ? relativo(monitor.exec?.proxima) : "Pausado"],
         ].map(([rotulo, valor]) => (
           <Cartao key={String(rotulo)} className="!p-3">
-            <p className="text-xs text-stone-500">{rotulo}</p>
-            <div className="mt-1 text-sm font-medium text-stone-900">{valor}</div>
+            <p className="text-xs text-muted">{rotulo}</p>
+            <div className="mt-1 text-sm font-medium text-ink">{valor}</div>
           </Cartao>
         ))}
       </div>
@@ -121,12 +121,12 @@ export function MonitorDetalhe() {
         )}
       </div>
 
-      <div className="-mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-stone-200 px-4 sm:mx-0 sm:px-0">
+      <div className="-mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-line px-4 sm:mx-0 sm:px-0">
         {abas.map((a) => (
           <button
             key={a.id}
             onClick={() => setAba(a.id)}
-            className={`shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${aba === a.id ? "border-orange-800 text-orange-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}
+            className={`shrink-0 border-b-2 px-3 py-2 text-sm font-medium ${aba === a.id ? "border-ink text-accent" : "border-transparent text-muted hover:text-ink"}`}
           >
             {a.nome}
           </button>
@@ -143,13 +143,13 @@ export function MonitorDetalhe() {
         ) : (
           <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
             <Cartao className="!p-2">
-              <p className="px-2 py-1 text-xs text-stone-500">Escolha A (antes) e B (depois)</p>
+              <p className="px-2 py-1 text-xs text-muted">Escolha A (antes) e B (depois)</p>
               <ul className="max-h-[60vh] space-y-0.5 overflow-auto">
                 {versoes.map((v) => (
-                  <li key={v.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-stone-50">
+                  <li key={v.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-card-2">
                     <span className="flex-1">{dataHora(v.capturadoEm)}</span>
-                    <button onClick={() => setSelA(v.id)} className={`size-7 rounded-md text-xs font-bold ${idA === v.id ? "bg-red-600 text-white" : "bg-stone-100 text-stone-600"}`}>A</button>
-                    <button onClick={() => setSelB(v.id)} className={`size-7 rounded-md text-xs font-bold ${idB === v.id ? "bg-emerald-600 text-white" : "bg-stone-100 text-stone-600"}`}>B</button>
+                    <button onClick={() => setSelA(v.id)} className={`size-7 rounded-md text-xs font-bold ${idA === v.id ? "bg-danger text-white" : "bg-panel text-muted"}`}>A</button>
+                    <button onClick={() => setSelB(v.id)} className={`size-7 rounded-md text-xs font-bold ${idB === v.id ? "bg-ok text-white" : "bg-panel text-muted"}`}>B</button>
                   </li>
                 ))}
               </ul>
@@ -157,19 +157,19 @@ export function MonitorDetalhe() {
             <Cartao>
               {vA && vB ? (
                 <>
-                  <p className="mb-3 text-sm text-stone-600">
-                    <b className="text-red-700">A</b> {dataHora(vA.capturadoEm)} → <b className="text-emerald-700">B</b> {dataHora(vB.capturadoEm)}
+                  <p className="mb-3 text-sm text-muted">
+                    <b className="text-danger">A</b> {dataHora(vA.capturadoEm)} → <b className="text-ok">B</b> {dataHora(vB.capturadoEm)}
                   </p>
                   <DiffView antigo={vA.texto} novo={vB.texto} />
                   {vA.temCaptura && vB.temCaptura && (
-                    <div className="mt-5 border-t border-stone-100 pt-4">
+                    <div className="mt-5 border-t border-line pt-4">
                       <h3 className="mb-3 text-sm font-semibold">Comparação visual</h3>
                       <ComparacaoVisual monitorId={id} antes={vA.id} depois={vB.id} />
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-sm text-stone-500">Selecione duas versões.</p>
+                <p className="text-sm text-muted">Selecione duas versões.</p>
               )}
             </Cartao>
           </div>
@@ -179,7 +179,7 @@ export function MonitorDetalhe() {
       {aba === "atual" && (
         versoes[0] ? (
           <Cartao>
-            <p className="mb-2 text-xs text-stone-500">Capturado em {dataHora(versoes[0].capturadoEm)}</p>
+            <p className="mb-2 text-xs text-muted">Capturado em {dataHora(versoes[0].capturadoEm)}</p>
             <div className={versoes[0].temCaptura ? "grid gap-4 lg:grid-cols-2" : ""}>
               <pre className="max-h-[65vh] overflow-auto text-sm whitespace-pre-wrap break-words">{versoes[0].texto}</pre>
               {versoes[0].temCaptura && (

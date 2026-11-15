@@ -6,7 +6,9 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { useState, type FormEvent } from "react";
-import { Aviso, Botao, Campo, classeInput } from "../components/ui";
+import { Link, useSearchParams } from "react-router-dom";
+import { Icone } from "../components/Icone";
+import { Aviso, Botao, Campo, classeInput, Marca } from "../components/ui";
 import { auth } from "../firebase";
 
 function traduzir(codigo: string): string {
@@ -26,7 +28,8 @@ function traduzir(codigo: string): string {
 }
 
 export function Login() {
-  const [modo, setModo] = useState<"entrar" | "criar">("entrar");
+  const [busca] = useSearchParams();
+  const [modo, setModo] = useState<"entrar" | "criar">(busca.get("modo") === "criar" ? "criar" : "entrar");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -54,13 +57,20 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-orange-950 via-orange-900 to-amber-800 p-4">
-      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <img src="/icon.svg" alt="" className="mb-3 size-16 rounded-2xl shadow" />
-          <h1 className="text-2xl font-bold text-orange-950">Notara</h1>
-          <p className="mt-1 text-sm text-stone-600">Note cada mudança. Monitore sites e receba um alerta quando algo mudar.</p>
+    <div className="relative flex min-h-dvh flex-col items-center justify-center bg-bg px-4 py-10">
+      <div className="grade pointer-events-none absolute inset-x-0 top-0 h-[70vh]" aria-hidden="true" />
+      <Link to="/" className="absolute top-5 left-5 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink">
+        <Icone nome="voltar" className="size-4" /> Início
+      </Link>
+      <div className="surgir relative w-full max-w-[400px]">
+        <div className="mb-7 flex flex-col items-center text-center">
+          <Marca className="mb-5 size-11" />
+          <h1 className="text-[32px] leading-tight font-medium tracking-[-0.03em] text-ink">
+            {modo === "entrar" ? "Entrar no Notara" : "Criar sua conta"}
+          </h1>
+          <p className="mt-2 text-[15px] text-muted">Note cada mudança nos sites que importam para você.</p>
         </div>
+        <div className="rounded-plate bg-card p-6 shadow-card sm:p-7">
 
         <Botao
           variante="secundario"
@@ -77,8 +87,8 @@ export function Login() {
           Continuar com Google
         </Botao>
 
-        <div className="my-5 flex items-center gap-3 text-xs text-stone-400">
-          <span className="h-px flex-1 bg-stone-200" /> ou <span className="h-px flex-1 bg-stone-200" />
+        <div className="my-5 flex items-center gap-3 text-xs text-faint">
+          <span className="h-px flex-1 bg-frame" /> ou <span className="h-px flex-1 bg-frame" />
         </div>
 
         <form onSubmit={enviar} className="space-y-3">
@@ -104,12 +114,12 @@ export function Login() {
         </form>
 
         <div className="mt-4 flex justify-between text-sm">
-          <button className="text-orange-900 hover:underline" onClick={() => setModo(modo === "entrar" ? "criar" : "entrar")}>
+          <button className="text-accent hover:underline" onClick={() => setModo(modo === "entrar" ? "criar" : "entrar")}>
             {modo === "entrar" ? "Criar conta" : "Já tenho conta"}
           </button>
           {modo === "entrar" && (
             <button
-              className="text-stone-500 hover:underline"
+              className="text-muted hover:underline"
               onClick={() => {
                 if (!email) return setErro("Digite seu e-mail acima para receber o link.");
                 executar(async () => {
@@ -121,6 +131,7 @@ export function Login() {
               Esqueci a senha
             </button>
           )}
+        </div>
         </div>
       </div>
     </div>

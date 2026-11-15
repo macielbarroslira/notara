@@ -1,8 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#7c2d12"/>
-  <circle cx="256" cy="256" r="150" fill="none" stroke="#fde7c7" stroke-width="22" opacity=".35"/>
-  <circle cx="256" cy="256" r="95" fill="none" stroke="#fde7c7" stroke-width="22" opacity=".6"/>
-  <path d="M256 256 L370 150" stroke="#fbbf24" stroke-width="26" stroke-linecap="round"/>
-  <circle cx="256" cy="256" r="34" fill="#fde7c7"/>
-  <circle cx="370" cy="150" r="22" fill="#fbbf24"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34363E"/>
+      <stop offset="1" stop-color="#0E0F13"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#g)"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#F4F4F6" stroke-width="30" opacity=".42"/>
+  <path d="M256 256 L360 152" stroke="#F4F4F6" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="40" fill="#F4F4F6"/>
+  <circle cx="360" cy="152" r="20" fill="#2E62F0"/>
 </svg>

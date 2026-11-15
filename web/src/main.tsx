@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./index.css";
 import "./lib/instalar";
+import { aplicarTema } from "./lib/tema";
+
+aplicarTema();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

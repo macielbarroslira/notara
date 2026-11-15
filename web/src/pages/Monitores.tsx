@@ -57,7 +57,7 @@ export function Monitores() {
       {monitores.length > 0 && (
         <div className="mb-4 space-y-3">
           <div className="relative">
-            <Icone nome="busca" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-stone-400" />
+            <Icone nome="busca" className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou URL" className={`${classeInput} pl-9`} />
           </div>
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
@@ -65,7 +65,7 @@ export function Monitores() {
               <button
                 key={f.id}
                 onClick={() => setFiltro(f.id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${filtro === f.id ? "bg-orange-900 text-white" : "bg-white text-stone-700 ring-1 ring-stone-300"}`}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${filtro === f.id ? "bg-ink text-on-ink" : "bg-card text-ink-2 ring-1 ring-line-2"}`}
               >
                 {f.nome}
               </button>
@@ -74,7 +74,7 @@ export function Monitores() {
               <button
                 key={t}
                 onClick={() => setTag(tag === t ? null : t)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${tag === t ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-900 ring-1 ring-amber-200"}`}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${tag === t ? "bg-accent text-white" : "bg-warn-soft text-warn ring-1 ring-warn/30"}`}
               >
                 #{t}
               </button>
@@ -107,30 +107,30 @@ export function Monitores() {
             <Link
               key={m.id}
               to={`/monitores/${m.id}`}
-              className="group flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 transition hover:shadow-md hover:ring-orange-300"
+              className="group flex flex-col rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line transition hover:shadow-md hover:ring-line-2"
             >
               <div className="flex items-start gap-3">
                 <img
                   src={`https://www.google.com/s2/favicons?domain=${dominio(m.url)}&sz=64`}
                   alt=""
-                  className="mt-0.5 size-8 shrink-0 rounded-lg bg-stone-100"
+                  className="mt-0.5 size-8 shrink-0 rounded-lg bg-panel"
                   loading="lazy"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate font-semibold text-stone-900 group-hover:text-orange-900">{m.nome}</h2>
+                    <h2 className="truncate font-semibold text-ink group-hover:text-ink">{m.nome}</h2>
                     {porMonitor.get(m.id) ? (
-                      <span className="rounded-full bg-amber-500 px-1.5 text-[11px] leading-5 font-bold text-white">{porMonitor.get(m.id)}</span>
+                      <span className="rounded-full bg-accent px-1.5 text-[11px] leading-5 font-bold text-white">{porMonitor.get(m.id)}</span>
                     ) : null}
                   </div>
-                  <p className="truncate text-xs text-stone-500">{dominio(m.url)}</p>
+                  <p className="truncate text-xs text-muted">{dominio(m.url)}</p>
                 </div>
                 <StatusBadge monitor={m} />
               </div>
-              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-stone-600">
-                {m.exec?.status === "erro" ? <span className="text-red-700">{m.exec.mensagem}</span> : m.exec?.preview || "Aguardando a primeira verificação…"}
+              <p className="mt-3 line-clamp-2 min-h-10 text-sm text-muted">
+                {m.exec?.status === "erro" ? <span className="text-danger">{m.exec.mensagem}</span> : m.exec?.preview || "Aguardando a primeira verificação…"}
               </p>
-              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-stone-100 pt-3 text-xs text-stone-500">
+              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-line pt-3 text-xs text-muted">
                 <span>{nomeTipo(m.tipo)}</span>
                 <span>⏱ {nomeIntervalo(m.intervaloMin)}</span>
                 <span>Verificado {relativo(m.exec?.ultima)}</span>

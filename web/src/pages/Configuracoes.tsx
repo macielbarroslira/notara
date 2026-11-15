@@ -50,13 +50,13 @@ export function Configuracoes() {
 
       <Cartao>
         <h2 className="font-semibold">Conta</h2>
-        <p className="mt-1 text-sm text-stone-600">{user?.email}</p>
+        <p className="mt-1 text-sm text-muted">{user?.email}</p>
         <Botao className="mt-4" icone="sair" onClick={() => signOut(auth)}>Sair</Botao>
       </Cartao>
 
       <Cartao>
         <h2 className="font-semibold">Notificações neste aparelho</h2>
-        <p className="mt-1 text-sm text-stone-600">Receba um alerta no celular, tablet ou computador quando um site mudar — mesmo com o app fechado.</p>
+        <p className="mt-1 text-sm text-muted">Receba um alerta no celular, tablet ou computador quando um site mudar — mesmo com o app fechado.</p>
         <div className="mt-4 space-y-3">
           {permissao === "granted" && <Aviso tipo="ok">Permissão concedida. Toque abaixo para registrar novamente se não estiver recebendo.</Aviso>}
           {suportado === false && ehIOS() && !instaladoComoApp() && (
@@ -72,11 +72,11 @@ export function Configuracoes() {
       <Cartao>
         <h2 className="font-semibold">Instalar o app</h2>
         {instaladoComoApp() ? (
-          <p className="mt-1 text-sm text-stone-600">O app já está instalado neste aparelho. ✅</p>
+          <p className="mt-1 text-sm text-muted">O app já está instalado neste aparelho. ✅</p>
         ) : podeInstalar ? (
           <Botao className="mt-3" icone="baixar" onClick={instalar}>Instalar Notara</Botao>
         ) : (
-          <ul className="mt-2 space-y-1 text-sm text-stone-600">
+          <ul className="mt-2 space-y-1 text-sm text-muted">
             <li><b>iPhone/iPad (Safari):</b> Compartilhar › Adicionar à Tela de Início</li>
             <li><b>Android (Chrome):</b> menu ⋮ › Instalar app</li>
             <li><b>Computador (Chrome/Edge):</b> ícone de instalar na barra de endereço</li>
@@ -86,7 +86,7 @@ export function Configuracoes() {
 
       <Cartao>
         <h2 className="font-semibold">Limites</h2>
-        <ul className="mt-2 space-y-1 text-sm text-stone-600">
+        <ul className="mt-2 space-y-1 text-sm text-muted">
           <li>Até 50 monitores por conta</li>
           <li>Intervalo mínimo de 5 minutos</li>
           <li>Histórico das últimas 50 versões de cada monitor</li>

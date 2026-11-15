@@ -18,9 +18,9 @@ export function ImagemCaptura({ monitorId, versaoId }: { monitorId: string; vers
     setSrc(undefined);
     carregarCaptura(`users/${uid}/monitores/${monitorId}/capturas/${versaoId}`).then(setSrc).catch(() => setSrc(null));
   }, [uid, monitorId, versaoId]);
-  if (src === undefined) return <Spinner className="size-6 text-orange-900" />;
-  if (!src) return <p className="text-sm text-stone-500">Screenshot indisponível.</p>;
-  return <img src={src} alt="Screenshot" className="w-full rounded-lg ring-1 ring-stone-200" loading="lazy" />;
+  if (src === undefined) return <Spinner className="size-6 text-accent" />;
+  if (!src) return <p className="text-sm text-muted">Screenshot indisponível.</p>;
+  return <img src={src} alt="Screenshot" className="w-full rounded-lg ring-1 ring-line" loading="lazy" />;
 }
 
 /** Antes × depois: lado a lado ou deslizando uma sobre a outra. */
@@ -38,8 +38,8 @@ export function ComparacaoVisual({ monitorId, antes, depois }: { monitorId: stri
       .catch(() => setImgs({ a: null, b: null }));
   }, [uid, monitorId, antes, depois]);
 
-  if (!imgs) return <div className="flex justify-center py-8"><Spinner className="size-6 text-orange-900" /></div>;
-  if (!imgs.a || !imgs.b) return <p className="text-sm text-stone-500">Screenshots indisponíveis para estas versões.</p>;
+  if (!imgs) return <div className="flex justify-center py-8"><Spinner className="size-6 text-accent" /></div>;
+  if (!imgs.a || !imgs.b) return <p className="text-sm text-muted">Screenshots indisponíveis para estas versões.</p>;
 
   return (
     <div>
@@ -48,7 +48,7 @@ export function ComparacaoVisual({ monitorId, antes, depois }: { monitorId: stri
           <button
             key={m}
             onClick={() => setModo(m)}
-            className={`rounded-full px-3 py-1 text-sm font-medium ${modo === m ? "bg-orange-900 text-white" : "bg-white text-stone-700 ring-1 ring-stone-300"}`}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${modo === m ? "bg-ink text-on-ink" : "bg-card text-ink-2 ring-1 ring-line-2"}`}
           >
             {m === "lado" ? "Lado a lado" : "Deslizar"}
           </button>
@@ -58,12 +58,12 @@ export function ComparacaoVisual({ monitorId, antes, depois }: { monitorId: stri
       {modo === "lado" ? (
         <div className="grid gap-3 md:grid-cols-2">
           {[
-            ["Antes", imgs.a, "text-red-700"],
-            ["Depois", imgs.b, "text-emerald-700"],
+            ["Antes", imgs.a, "text-danger"],
+            ["Depois", imgs.b, "text-ok"],
           ].map(([rotulo, src, cor]) => (
             <figure key={rotulo}>
               <figcaption className={`mb-1 text-xs font-semibold uppercase ${cor}`}>{rotulo}</figcaption>
-              <div className="max-h-[70vh] overflow-auto rounded-lg ring-1 ring-stone-200">
+              <div className="max-h-[70vh] overflow-auto rounded-lg ring-1 ring-line">
                 <img src={src!} alt={rotulo!} className="w-full" />
               </div>
             </figure>
@@ -72,11 +72,11 @@ export function ComparacaoVisual({ monitorId, antes, depois }: { monitorId: stri
       ) : (
         <div>
           <div className="mb-2 flex items-center gap-3 text-xs font-semibold">
-            <span className="text-red-700">ANTES</span>
-            <input type="range" min={0} max={100} value={corte} onChange={(e) => setCorte(Number(e.target.value))} className="flex-1 accent-orange-800" aria-label="Posição da comparação" />
-            <span className="text-emerald-700">DEPOIS</span>
+            <span className="text-danger">ANTES</span>
+            <input type="range" min={0} max={100} value={corte} onChange={(e) => setCorte(Number(e.target.value))} className="flex-1 accent-accent" aria-label="Posição da comparação" />
+            <span className="text-ok">DEPOIS</span>
           </div>
-          <div className="max-h-[70vh] overflow-auto rounded-lg ring-1 ring-stone-200">
+          <div className="max-h-[70vh] overflow-auto rounded-lg ring-1 ring-line">
             <div className="relative">
               <img src={imgs.b} alt="Depois" className="block w-full" />
               <img
@@ -85,7 +85,7 @@ export function ComparacaoVisual({ monitorId, antes, depois }: { monitorId: stri
                 className="absolute inset-x-0 top-0 block w-full"
                 style={{ clipPath: `inset(0 ${100 - corte}% 0 0)` }}
               />
-              <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-orange-600" style={{ left: `${corte}%` }} />
+              <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-accent" style={{ left: `${corte}%` }} />
             </div>
           </div>
         </div>

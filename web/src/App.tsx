@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Carregando } from "./components/ui";
 import { AuthProvider, useAuth } from "./lib/dados";
 import { AlteracaoDetalhe } from "./pages/AlteracaoDetalhe";
 import { Alteracoes } from "./pages/Alteracoes";
 import { Configuracoes } from "./pages/Configuracoes";
+import { Landing } from "./pages/Landing";
 import { Login } from "./pages/Login";
 import { MonitorDetalhe } from "./pages/MonitorDetalhe";
 import { MonitorForm } from "./pages/MonitorForm";
@@ -13,8 +14,17 @@ import { Monitores } from "./pages/Monitores";
 
 function Protegido({ children }: { children: ReactNode }) {
   const { user, carregando } = useAuth();
+  const { pathname } = useLocation();
   if (carregando) return <Carregando />;
-  return user ? children : <Login />;
+  if (user) return children;
+  // Visitante: página inicial em "/", login nas demais (o link continua valendo depois de entrar)
+  return pathname === "/" ? <Landing /> : <Login />;
+}
+
+function Entrar() {
+  const { user, carregando } = useAuth();
+  if (carregando) return <Carregando />;
+  return user ? <Navigate to="/" replace /> : <Login />;
 }
 
 export function App() {
@@ -22,6 +32,7 @@ export function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="entrar" element={<Entrar />} />
           <Route
             element={
               <Protegido>

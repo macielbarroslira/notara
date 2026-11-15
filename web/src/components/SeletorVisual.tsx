@@ -128,33 +128,33 @@ export function SeletorVisual({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-stone-950/70 backdrop-blur-sm md:p-6" role="dialog" aria-modal="true">
-      <div className="flex w-full max-w-6xl flex-col overflow-hidden bg-white md:rounded-2xl md:shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm md:p-6" role="dialog" aria-modal="true">
+      <div className="flex w-full max-w-6xl flex-col overflow-hidden bg-card md:rounded-2xl md:shadow-2xl">
         {/* Topo */}
-        <div className="flex items-start gap-3 border-b border-stone-200 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
-          <Icone nome="mira" className="mt-0.5 size-5 shrink-0 text-orange-900" />
+        <div className="flex items-start gap-3 border-b border-line px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
+          <Icone nome="mira" className="mt-0.5 size-5 shrink-0 text-accent" />
           <div className="min-w-0 flex-1">
             <h2 className="font-semibold">Escolha o que monitorar</h2>
-            <p className="text-xs text-stone-500 sm:hidden">Toque no trecho da página.</p>
-            <p className="hidden text-sm text-stone-500 sm:block">
+            <p className="text-xs text-muted sm:hidden">Toque no trecho da página.</p>
+            <p className="hidden text-sm text-muted sm:block">
               Toque ou clique no trecho da página (preço, estoque, título…). Use <b>Maior</b>/<b>Menor</b> para ajustar a área.
             </p>
           </div>
-          <div className="flex shrink-0 items-center rounded-lg ring-1 ring-stone-300">
+          <div className="flex shrink-0 items-center rounded-lg ring-1 ring-line-2">
             <button onClick={() => setZoom((z) => Math.max(1, z - 0.5))} disabled={zoom <= 1} className="px-2.5 py-1 text-lg leading-none disabled:opacity-30" aria-label="Diminuir zoom">−</button>
-            <span className="w-11 text-center text-xs text-stone-600 tabular-nums">{Math.round(zoom * 100)}%</span>
+            <span className="w-11 text-center text-xs text-muted tabular-nums">{Math.round(zoom * 100)}%</span>
             <button onClick={() => setZoom((z) => Math.min(4, z + 0.5))} disabled={zoom >= 4} className="px-2.5 py-1 text-lg leading-none disabled:opacity-30" aria-label="Aumentar zoom">+</button>
           </div>
-          <button onClick={onFechar} className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100" aria-label="Fechar">
+          <button onClick={onFechar} className="rounded-lg p-1.5 text-muted hover:bg-panel" aria-label="Fechar">
             <Icone nome="fechar" />
           </button>
         </div>
 
         {/* Página */}
-        <div className="relative flex-1 overflow-auto bg-stone-100">
+        <div className="relative flex-1 overflow-auto bg-panel">
           {!dados && !erro && (
-            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-stone-600">
-              <Spinner className="size-8 text-orange-900" />
+            <div className="flex h-full min-h-64 flex-col items-center justify-center gap-3 text-muted">
+              <Spinner className="size-8 text-accent" />
               <p className="max-w-sm px-4 text-center text-sm">{TEXTO_ESPERA[estado]}</p>
             </div>
           )}
@@ -172,10 +172,10 @@ export function SeletorVisual({
               <div ref={camada} className="absolute inset-0" onMouseMove={sobre} onMouseLeave={() => setHover(null)} onClick={clicar}>
                 {selecionados.map((s) => {
                   const e = porSeletor.get(s);
-                  return e ? <Caixa key={s} e={e} larg={dados.largura} alt={dados.altura} classe="bg-amber-400/25 ring-2 ring-amber-500" /> : null;
+                  return e ? <Caixa key={s} e={e} larg={dados.largura} alt={dados.altura} classe="bg-accent/20 ring-2 ring-accent" /> : null;
                 })}
-                {hover && !atual && <Caixa e={hover} larg={dados.largura} alt={dados.altura} classe="bg-orange-500/10 outline-2 outline-orange-600 outline-dashed" />}
-                {atual && <Caixa e={atual} larg={dados.largura} alt={dados.altura} classe="bg-sky-400/20 ring-[3px] ring-sky-600" />}
+                {hover && !atual && <Caixa e={hover} larg={dados.largura} alt={dados.altura} classe="bg-accent/10 outline-2 outline-accent outline-dashed" />}
+                {atual && <Caixa e={atual} larg={dados.largura} alt={dados.altura} classe="bg-accent/20 ring-[3px] ring-accent" />}
               </div>
             </div>
           )}
@@ -183,9 +183,9 @@ export function SeletorVisual({
 
         {/* Painel do elemento tocado */}
         {atual && (
-          <div className="border-t border-sky-200 bg-sky-50 px-4 py-3">
-            <p className="line-clamp-2 text-sm text-stone-800">{atual.t || "(imagem)"}</p>
-            <code className="mt-1 block truncate text-[11px] text-stone-500">{atual.s}</code>
+          <div className="border-t border-accent/30 bg-accent-soft px-4 py-3">
+            <p className="line-clamp-2 text-sm text-ink">{atual.t || "(imagem)"}</p>
+            <code className="mt-1 block truncate text-[11px] text-muted">{atual.s}</code>
             <div className="mt-2 flex flex-wrap gap-2">
               <Botao variante="primario" icone={jaSelecionado ? "fechar" : "check"} onClick={alternar}>
                 {jaSelecionado ? "Remover" : "Selecionar"}
@@ -198,13 +198,13 @@ export function SeletorVisual({
         )}
 
         {/* Rodapé */}
-        <div className="flex flex-col gap-3 border-t border-stone-200 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 border-t border-line px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center">
           <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-            {selecionados.length === 0 && <span className="text-sm text-stone-500">Nenhum trecho selecionado</span>}
+            {selecionados.length === 0 && <span className="text-sm text-muted">Nenhum trecho selecionado</span>}
             {selecionados.map((s) => (
-              <span key={s} className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 py-1 pr-1 pl-2.5 text-xs text-amber-900">
+              <span key={s} className="inline-flex max-w-full items-center gap-1 rounded-full bg-warn-soft py-1 pr-1 pl-2.5 text-xs text-warn">
                 <span className="truncate">{porSeletor.get(s)?.t.slice(0, 40) || s}</span>
-                <button onClick={() => setSelecionados((x) => x.filter((y) => y !== s))} className="rounded-full p-0.5 hover:bg-amber-200" aria-label="Remover">
+                <button onClick={() => setSelecionados((x) => x.filter((y) => y !== s))} className="rounded-full p-0.5 hover:bg-warn-soft" aria-label="Remover">
                   <Icone nome="fechar" className="size-3" />
                 </button>
               </span>

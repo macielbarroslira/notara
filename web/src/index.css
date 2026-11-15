@@ -1,13 +1,196 @@
 @import "tailwindcss";
+@import "@fontsource-variable/onest";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+/* Tema escuro: classe .dark no <html> (automática pelo sistema ou escolhida no menu) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Tokens do Notara ---------- */
+:root {
+  --bg: #ffffff;
+  --card: #ffffff;
+  --card-2: #fbfbfc;
+  --panel: #f2f2f4;
+  --frame: #eeeef1;
+  --ink: #111114;
+  --ink-2: #2a2b31;
+  --muted: #55565e;
+  --faint: #6b6c74;
+  --on-ink: #ffffff;
+  --line: rgba(17, 17, 22, 0.08);
+  --line-2: rgba(17, 17, 22, 0.13);
+  --line-3: rgba(17, 17, 22, 0.22);
+  --accent: #2e62f0;
+  --accent-soft: rgba(46, 98, 240, 0.12);
+  --ok: #1d7f55;
+  --ok-soft: rgba(29, 127, 85, 0.1);
+  --warn: #9a5b0b;
+  --warn-soft: rgba(176, 108, 18, 0.12);
+  --danger: #c0352b;
+  --danger-soft: rgba(192, 53, 43, 0.1);
+  --cta-a: #34363e;
+  --cta-b: #0e0f13;
+  --grid-line: rgba(17, 17, 22, 0.055);
+  --sh-card: 0 0 0 1px rgba(17, 17, 22, 0.06), 0 1px 1px rgba(17, 17, 22, 0.03), 0 2px 4px rgba(17, 17, 22, 0.03),
+    0 8px 16px -6px rgba(17, 17, 22, 0.06), 0 24px 40px -18px rgba(17, 17, 22, 0.1);
+  --sh-ring: 0 0 0 1px var(--line), 0 1px 2px rgba(17, 17, 22, 0.05);
+  --sh-nav: 0 0 0 1px rgba(17, 17, 22, 0.08), 0 1px 2px rgba(17, 17, 22, 0.04), 0 12px 32px -16px rgba(17, 17, 22, 0.18);
+  --nav-bg: rgba(255, 255, 255, 0.8);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: light;
 }
 
+.dark {
+  --bg: #0b0b0e;
+  --card: #131317;
+  --card-2: #17171c;
+  --panel: #1c1d22;
+  --frame: #24252b;
+  --ink: #f4f4f6;
+  --ink-2: #dcdde2;
+  --muted: #a6a7b0;
+  --faint: #80818a;
+  --on-ink: #111114;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.13);
+  --line-3: rgba(255, 255, 255, 0.22);
+  --accent: #6e93ff;
+  --accent-soft: rgba(110, 147, 255, 0.16);
+  --ok: #43c08a;
+  --ok-soft: rgba(67, 192, 138, 0.14);
+  --warn: #e3a64a;
+  --warn-soft: rgba(227, 166, 74, 0.14);
+  --danger: #f07a70;
+  --danger-soft: rgba(240, 122, 112, 0.14);
+  --cta-a: #ffffff;
+  --cta-b: #dcdde2;
+  --grid-line: rgba(255, 255, 255, 0.05);
+  --sh-card: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --sh-ring: 0 0 0 1px var(--line);
+  --sh-nav: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 12px 32px -16px rgba(0, 0, 0, 0.7);
+  --nav-bg: rgba(19, 19, 23, 0.78);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Onest Variable", "Onest", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-panel: var(--panel);
+  --color-frame: var(--frame);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-on-ink: var(--on-ink);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-line-3: var(--line-3);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-xs: 7px;
+  --radius-sm: 10px;
+  --radius-inner: 14px;
+  --radius-card: 20px;
+  --radius-plate: 28px;
+
+  --shadow-card: var(--sh-card);
+  --shadow-ring: var(--sh-ring);
+  --shadow-nav: var(--sh-nav);
+}
+
+/* ---------- Base ---------- */
 html {
   -webkit-tap-highlight-color: transparent;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.02em;
 }
 
 code {
-  @apply rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.85em];
+  @apply rounded-xs bg-panel px-1 py-0.5 font-mono text-[0.85em];
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* ---------- Componentes ---------- */
+
+/* Botão principal: pílula escura com brilho sutil (invertida no tema escuro) */
+.btn-primario {
+  color: var(--on-ink);
+  background: linear-gradient(180deg, var(--cta-a), var(--cta-b));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 1px 2px rgba(17, 17, 22, 0.18),
+    0 6px 14px -6px rgba(17, 17, 22, 0.35);
+  transition:
+    transform 160ms var(--ease-out),
+    filter 160ms var(--ease-out);
+}
+.btn-primario:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.btn-primario:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Menu flutuante com fundo desfocado */
+.nav-flutuante {
+  background: var(--nav-bg);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  box-shadow: var(--sh-nav);
+}
+
+/* Selo de anúncio (pílula) */
+.selo {
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Fundo quadriculado suave da página inicial */
+.grade {
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 75%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .surgir {
+    animation: surgir 650ms var(--ease-out) both;
+  }
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
 }
