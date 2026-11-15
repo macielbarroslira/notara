@@ -164,7 +164,9 @@ const CHAVE_OPENCODE = process.env.OPENCODE_API_KEY?.trim();
 
 const GEMINI_PREFERIDOS = [
   ...(process.env.GEMINI_MODELO?.trim() ? [process.env.GEMINI_MODELO.trim()] : []),
+  "gemini-3.8-flash",
   "gemini-3-flash-preview",
+  "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
   "gemini-flash-lite-latest",
   "gemini-2.5-flash",
@@ -475,10 +477,13 @@ export async function pesquisarNoGoogle(pergunta: string): Promise<{ texto: stri
       })) as {
         candidates?: Array<{ content?: { parts?: Parte[] }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }>;
       };
-      const c = j.candidates?.[0];
+      const c = j.candidates?.[0] as
+        | { content?: { parts?: Parte[] }; finishReason?: string; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }
+        | undefined;
       const texto = (c?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
       const fontes = (c?.groundingMetadata?.groundingChunks ?? []).map((g) => g.web?.title ?? g.web?.uri ?? "").filter(Boolean);
       if (texto) return { texto, modelo: o.modelo, fontes };
+      console.warn(`[IA busca] ${o.modelo}: resposta vazia (${c?.finishReason ?? JSON.stringify(j).slice(0, 200)})`);
     } catch (e) {
       console.warn(`[IA busca] ${o.modelo}: ${(e as Error).message.slice(0, 160)}`);
       if (e instanceof ErroDeModelo) foraAte.set(o.modelo, Date.now() + e.pausaMs);
