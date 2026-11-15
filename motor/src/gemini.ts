@@ -4,10 +4,18 @@ import { alertaDeTeste, criarMonitor, lerPagina, listarMonitores, pausarOuRetoma
 
 /**
  * Conversa livre no Telegram com o Google Gemini (plano gratuito do Google AI Studio).
- * Ligue com o Secret GEMINI_API_KEY. Modelo: GEMINI_MODELO (padrão: o Flash mais recente).
+ * Ligue com o Secret GEMINI_API_KEY. No início da rodada o motor testa os modelos (GEMINI_MODELO primeiro)
+ * e usa o primeiro que responder rápido — os "latest"/"preview" do plano grátis às vezes ficam travados.
  */
 const CHAVE = process.env.GEMINI_API_KEY?.trim();
-const MODELO = process.env.GEMINI_MODELO?.trim() || "gemini-flash-latest";
+const CANDIDATOS = [
+  ...(process.env.GEMINI_MODELO?.trim() ? [process.env.GEMINI_MODELO.trim()] : []),
+  "gemini-2.5-flash",
+  "gemini-3-flash-preview",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-latest",
+];
+let modelo = CANDIDATOS[0];
 const MAX_HISTORICO = 16;
 const MAX_PASSOS = 6;
 const TEMPO_MS = 45_000;
@@ -148,8 +156,8 @@ type RespostaGemini = {
   error?: { code: number; message: string; status?: string };
 };
 
-async function chamarGemini(conteudos: Conteudo[], comFerramentas = true) {
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`, {
+async function chamarGemini(conteudos: Conteudo[], comFerramentas = true, qual = modelo, tempoMs = TEMPO_MS) {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${qual}:generateContent`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-goog-api-key": CHAVE! },
     body: JSON.stringify({
@@ -158,34 +166,34 @@ async function chamarGemini(conteudos: Conteudo[], comFerramentas = true) {
       ...(comFerramentas ? { tools: FERRAMENTAS } : {}),
       ...(pensamento ? { generationConfig: pensamento } : {}),
     }),
-    signal: AbortSignal.timeout(TEMPO_MS),
+    signal: AbortSignal.timeout(tempoMs),
   });
   return { status: r.status, j: (await r.json()) as RespostaGemini };
 }
 
-/** Autoteste no início da rodada: mostra no log qual modelo responde e em quanto tempo. */
+/** Autoteste no início da rodada: escolhe o primeiro modelo que responde (com ferramentas) em até 20 s. */
 export async function diagnosticarIa() {
   if (!CHAVE) return;
-  try {
-    const lista = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
-      headers: { "x-goog-api-key": CHAVE },
-      signal: AbortSignal.timeout(15_000),
-    });
-    const modelos = ((await lista.json()) as { models?: Array<{ name: string }> }).models ?? [];
-    console.log(`IA: ${modelos.length} modelos; flash: ${modelos.map((m) => m.name.replace("models/", "")).filter((n) => n.includes("flash")).slice(0, 12).join(", ")}`);
-    for (const ferramentas of [false, true]) {
-      const inicio = Date.now();
-      const r = await chamarGemini([{ role: "user", parts: [{ text: "Responda só: ok" }] }], ferramentas);
+  for (const candidato of [...new Set(CANDIDATOS)]) {
+    const inicio = Date.now();
+    try {
+      let r = await chamarGemini([{ role: "user", parts: [{ text: "Responda só: ok" }] }], true, candidato, 20_000);
       if (r.status === 400 && pensamento && /thinking/i.test(r.j.error?.message ?? "")) {
         pensamento = null;
         console.warn("IA: modelo não aceita thinkingConfig; seguindo sem.");
-        continue;
+        r = await chamarGemini([{ role: "user", parts: [{ text: "Responda só: ok" }] }], true, candidato, 20_000);
       }
-      console.log(`IA (${MODELO}, ferramentas: ${ferramentas}): HTTP ${r.status} em ${Date.now() - inicio} ms${r.j.error ? ` — ${r.j.error.message.slice(0, 200)}` : ""}`);
+      console.log(`IA ${candidato}: HTTP ${r.status} em ${Date.now() - inicio} ms${r.j.error ? ` — ${r.j.error.message.slice(0, 160)}` : ""}`);
+      if (r.status === 200) {
+        modelo = candidato;
+        console.log(`IA: usando ${modelo}`);
+        return;
+      }
+    } catch (e) {
+      console.warn(`IA ${candidato}: ${String(e)} (${Date.now() - inicio} ms)`);
     }
-  } catch (e) {
-    console.warn("IA: autoteste falhou —", String(e));
   }
+  console.warn("IA: nenhum modelo respondeu; a conversa vai avisar o erro.");
 }
 
 const limpar = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#+\s*/gm, "").trim();
