@@ -54,6 +54,11 @@ export interface Linha {
   dv?: number; // versão do extrator usada nessa leitura
   bn?: string | null; // banca
   pv?: string | null; // próxima prova (AAAA-MM-DD)
+  sb?: string | null; // site da banca ou da inscrição
+  bni?: string | null; // banca encontrada pela IA (pesquisa no Google)
+  sbi?: string | null; // site encontrado pela IA
+  ia?: number; // quando a IA pesquisou (ms)
+  pr?: boolean; // inscrição presencial ou pela própria prefeitura/órgão
 }
 
 export function linhaDoIndice(c: Concurso, primeiroVisto: number): Linha {
@@ -155,6 +160,10 @@ async function lerIndice(): Promise<Linha[]> {
 }
 
 /** Índice para a IA/Telegram (cache de 10 min; a coleta atualiza na hora). */
+/** Índice atual em memória (para a pesquisa da IA atualizar e salvar). */
+export const indiceAtual = () => indice?.linhas ?? null;
+export const salvarIndice = (linhas: Linha[]) => gravarIndice(linhas);
+
 export async function carregarIndice() {
   if (indice && Date.now() - indice.lidoEm < 10 * 60_000) return indice.linhas;
   indice = { linhas: await lerIndice(), lidoEm: Date.now() };
@@ -260,7 +269,9 @@ export async function coletarConcursos() {
     // Na carga inicial nada é "novo" (p = 0); depois, p = quando apareceu pela primeira vez
     const linha = linhaDoIndice(c, antes?.p ?? (primeiraCarga ? 0 : agora));
     // Cargos completados pela página do concurso continuam valendo enquanto a notícia for a mesma
-    if (antes?.dl && antes.dl === c.link) Object.assign(linha, { cg: antes.cg, a: antes.a, b: antes.b, dl: antes.dl, dv: antes.dv, bn: antes.bn, pv: antes.pv });
+    if (antes?.dl && antes.dl === c.link) Object.assign(linha, { cg: antes.cg, a: antes.a, b: antes.b, dl: antes.dl, dv: antes.dv, bn: antes.bn, pv: antes.pv, sb: antes.sb, pr: antes.pr });
+    // O que a IA achou continua valendo (a notícia nova pode não citar a banca)
+    if (antes) Object.assign(linha, { bni: antes.bni, sbi: antes.sbi, ia: antes.ia, ...(linha.bn ? {} : { bn: antes.bni ?? linha.bn }), ...(linha.sb ? {} : { sb: antes.sbi ?? linha.sb }) });
     linhas.push(linha);
     const ref = db.doc(`concursos/${c.id}`);
     const doc = {
@@ -374,7 +385,11 @@ export async function detalharConcursos(max = 300) {
             banca: ficha.banca,
             cronograma: ficha.cronograma,
             ...(nomes.length ? { cargosDetalhe: ficha.cargos, cargos: nomes, variosCargos: false, areas: lerAreas(nomes, l.o) } : {}),
-            links: { fonte: l.l, ...(ficha.siteInscricao ? { inscricao: `https://${ficha.siteInscricao}` } : {}) },
+            links: {
+              fonte: l.l,
+              ...(ficha.siteInscricao ? { inscricao: `https://${ficha.siteInscricao}` } : ficha.siteBanca ? { inscricao: ficha.siteBanca } : {}),
+              ...(ficha.siteBanca ? { banca: ficha.siteBanca } : {}),
+            },
             detalhadoEm: Timestamp.now(),
           },
           { merge: true },
@@ -393,7 +408,9 @@ export async function detalharConcursos(max = 300) {
           atual.cg = nomes.join(", ").slice(0, 400);
           atual.a = lerAreas(nomes, atual.o);
         }
-        atual.bn = ficha.banca;
+        atual.bn = ficha.banca ?? atual.bni ?? null;
+        atual.sb = ficha.siteBanca ?? (ficha.siteInscricao ? `https://${ficha.siteInscricao}` : null) ?? atual.sbi ?? null;
+        atual.pr = ficha.organizacaoPropria || ficha.inscricaoModo === "presencial";
         atual.pv = proximaProva(ficha, hoje);
         atual.b = tokensDeBusca(atual.o, atual.c, nomes.join(" ") || atual.cg, atual.u, ficha.banca).join(" ");
         atual.dl = l.l;

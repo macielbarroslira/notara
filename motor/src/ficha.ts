@@ -8,7 +8,7 @@ import { lerEscolaridades, normalizarTexto, type Escolaridade } from "./concurso
  * Guardamos só os fatos extraídos (datas, valores, nomes) — não o texto da notícia.
  */
 
-export const VERSAO_FICHA = 3;
+export const VERSAO_FICHA = 4;
 
 export type TipoData =
   | "inscricao"
@@ -40,7 +40,13 @@ export interface Ficha {
   publicadoEm: string | null; // data da notícia
   noticia: "abertura" | "retificacao" | "prorrogacao" | "reabertura" | "suspensao" | "resultado" | "outra";
   banca: string | null;
+  /** Site oficial da banca (tabela de bancas conhecidas). */
+  siteBanca: string | null;
+  /** Site citado na notícia para a inscrição. */
   siteInscricao: string | null;
+  /** Quem faz a inscrição: banca, a própria prefeitura/órgão, ou presencial. */
+  inscricaoModo: "online" | "presencial" | "online_e_presencial" | null;
+  organizacaoPropria: boolean;
   cronograma: DataCronograma[];
   taxa: { min: number; max: number } | null;
   salario: { min: number; max: number } | null;
@@ -83,58 +89,86 @@ const valores = (s: string) =>
   [...s.matchAll(/R\$\s*([\d.]+(?:,\d{1,2})?)/g)].map((m) => Number(m[1].replace(/\./g, "").replace(",", "."))).filter((n) => n > 0);
 const faixa = (ns: number[]) => (ns.length ? { min: Math.min(...ns), max: Math.max(...ns) } : null);
 
-/** Bancas conhecidas: pelo domínio do site de inscrição ou pelo nome citado. */
-const BANCAS: Array<[RegExp, string]> = [
-  [/cebraspe|cespe/, "Cebraspe"],
-  [/fgv|getulio vargas/, "FGV"],
-  [/vunesp/, "Vunesp"],
-  [/concursosfcc|carlos chagas|\bfcc\b/, "FCC"],
-  [/cesgranrio/, "Cesgranrio"],
-  [/ibfc/, "IBFC"],
-  [/ibade/, "Ibade"],
-  [/idecan/, "Idecan"],
-  [/aocp/, "Instituto AOCP"],
-  [/quadrix/, "Quadrix"],
-  [/consulplan/, "Consulplan"],
-  [/consulpam/, "Consulpam"],
-  [/fundatec/, "Fundatec"],
-  [/objetivas? concursos|objetivaconcursos/, "Objetiva Concursos"],
-  [/ibgp/, "IBGP"],
-  [/institutomais|instituto mais/, "Instituto Mais"],
-  [/avancasp|avanca sp/, "Avança SP"],
-  [/fepese/, "Fepese"],
-  [/idib/, "IDIB"],
-  [/selecon/, "Selecon"],
-  [/legalle/, "Legalle"],
-  [/access/, "Instituto Access"],
-  [/gestaodeconcursos|fundep/, "Fundep"],
-  [/fadenor|cotec/, "Cotec/Fadenor"],
-  [/abconcursos/, "AB Concursos"],
-  [/sigmarh|sigma rh/, "Sigma RH"],
-  [/ibam/, "Ibam"],
-  [/igeduc/, "Igeduc"],
-  [/rboconcursos|\brbo\b/, "RBO"],
-  [/omniconcursos|omni/, "Omni"],
-  [/institutoibdo|ibdo/, "IBDO"],
-  [/fafipa/, "Fafipa"],
-  [/unesc/, "Unesc"],
-  [/amauc/, "Amauc"],
-  [/furb/, "Furb"],
-  [/cetrede/, "Cetrede"],
-  [/upenet|iaupe/, "UPENET/IAUPE"],
-  [/nossorumo/, "Nosso Rumo"],
-  [/institutoexcelencia|excelencia/, "Instituto Excelência"],
-  [/integri/, "Integri"],
-  [/shdias/, "SHDias"],
-  [/msconcursos|metro capital/, "MS Concursos"],
+/** Bancas conhecidas: [como aparece no texto ou no domínio, nome, site oficial verificado]. */
+const BANCAS: Array<[RegExp, string, string | null]> = [
+  [/cebraspe|cespe/, "Cebraspe", "https://www.cebraspe.org.br"],
+  [/conhecimento fgv|fgv|getulio vargas/, "FGV", "https://conhecimento.fgv.br"],
+  [/vunesp/, "Vunesp", "https://www.vunesp.com.br"],
+  [/concursosfcc|carlos chagas|\bfcc\b/, "FCC", "https://www.concursosfcc.com.br"],
+  [/cesgranrio/, "Cesgranrio", "https://www.cesgranrio.org.br"],
+  [/ibfc/, "IBFC", "https://www.ibfc.org.br"],
+  [/ibade/, "Ibade", "https://ibade.org.br"],
+  [/idecan/, "Idecan", "https://idecan.org.br"],
+  [/aocp/, "Instituto AOCP", "https://www.institutoaocp.org.br"],
+  [/quadrix/, "Quadrix", "https://quadrix.org.br"],
+  [/consulplan/, "Consulplan", "https://www.institutoconsulplan.org.br"],
+  [/consulpam/, "Consulpam", "https://www.consulpam.com.br"],
+  [/fundatec/, "Fundatec", "https://www.fundatec.org.br"],
+  [/objetivas? concursos|objetivaconcursos|objetivas com br|instituto objetiva/, "Objetiva Concursos", "https://www.objetivas.com.br"],
+  [/ibgp/, "IBGP", "https://www.ibgpconcursos.com.br"],
+  [/institutomais|instituto mais/, "Instituto Mais", "https://www.institutomais.org.br"],
+  [/avancasp|avanca sp/, "Avança SP", "https://www.avancasp.org.br"],
+  [/fepese/, "Fepese", null],
+  [/idib/, "IDIB", "https://www.idib.org.br"],
+  [/selecon/, "Selecon", "https://selecon.org.br"],
+  [/legalle/, "Legalle", "https://www.legalleconcursos.com.br"],
+  [/instituto access|access org|\baccess\b/, "Instituto Access", "https://concursos.access.org.br"],
+  [/gestaodeconcursos|fundep/, "Fundep", "https://www.gestaodeconcursos.com.br"],
+  [/fadenor|cotec/, "Cotec/Fadenor", "https://cotec.fadenor.com.br"],
+  [/abconcursos|ab concursos/, "AB Concursos", "https://abconcursospublicos.org"],
+  [/sigmarh|sigma rh/, "Sigma RH", "https://www.sigmarh.com.br"],
+  [/ibamsp|\bibam\b/, "Ibam", "https://www.ibamsp-concursos.org.br"],
+  [/igeduc/, "Igeduc", "https://igeduc.selecao.net.br"],
+  [/rboconcursos|\brbo\b/, "RBO", "https://www.rboconcursos.com.br"],
+  [/omniconcursos|\bomni\b/, "Omni", "https://omniconcursos.com.br"],
+  [/ibdoprojetos|institutoibdo|\bibdo\b/, "IBDO", "https://www.ibdoprojetos.org.br"],
+  [/fafipa/, "Fafipa", "https://www.fafipa.org"],
+  [/unesc/, "Unesc", "https://www.unesc.net"],
+  [/amauc/, "Amauc", "https://www.amauc.org.br"],
+  [/furb/, "Furb", "https://concursos.furb.br"],
+  [/cetrede/, "Cetrede", null],
+  [/upenet|iaupe/, "UPENET/IAUPE", "https://www.upenet.com.br"],
+  [/nossorumo|nosso rumo/, "Nosso Rumo", "https://nossorumo.org.br"],
+  [/institutoexcelencia|instituto excelencia/, "Instituto Excelência", "https://www.institutoexcelencia.org.br"],
+  [/integri/, "Integri", "https://www.integri.com.br"],
+  [/shdias/, "SHDias", "https://www.shdias.com.br"],
+  [/msconc|ms concursos|metro capital/, "MS Concursos", "https://concursos.msconc.com.br"],
+  [/avalia/, "Instituto Avalia", "https://www.avalia.org.br"],
+  [/inepam/, "Inepam", "https://www.inepam.org.br"],
+  [/concursosjcm|\bjcm\b/, "JCM Concursos", "https://www.concursosjcm.com.br"],
+  [/itame/, "Itame", "https://itame.com.br"],
+  [/consesp/, "Consesp", "https://www.consesp.com.br"],
+  [/verbena/, "Instituto Verbena", "https://institutoverbena.ufg.br"],
+  [/ideap/, "Instituto IDEAP", "https://institutoideap.org.br"],
+  [/indepac/, "Indepac", "https://indepac.selecao.net.br"],
+  [/fahece/, "Fahece", "https://www.fahece.org.br"],
+  [/ipell/, "IPELL", "https://www.ipell.com.br"],
+  [/idcap/, "IDCAP", "https://www.idcap.org.br"],
+  [/glconsultoria|gl consultoria/, "GL Consultoria", "https://portal.glconsultoria.com.br"],
+  [/publiconsult/, "Publiconsult", "https://www.publiconsult.com.br"],
+  [/omconcursos|om concursos/, "OM Concursos", "https://www.omconcursos.com.br"],
+  [/indec/, "Instituto Indec", "https://www.institutoindec.org.br"],
+  [/funvapi/, "Funvapi", "https://www.funvapi.com.br"],
+  [/idepi/, "IDEPI", "https://www.idepi.org.br"],
+  [/icap/, "ICAP", "https://www.icap-to.com.br"],
+  [/imperioconcursos|imperio concursos/, "Império Concursos", "https://portal.imperioconcursos.com.br"],
+  [/rmconcursos|rm concursos/, "RM Concursos", "https://www.rmconcursos.com"],
 ];
 
-function identificarBanca(texto: string, site: string | null) {
+/** Nome citado em "pelo site da Acesse Concursos" / "no portal do CEPASF". */
+function organizadoraCitada(frase: string): string | null {
+  const m = /\b(?:site|portal|p[áa]gina|plataforma|sistema)\s+(?:eletr[ôo]nic[oa]\s+)?(?:oficial\s+)?(?:d[aoe])\s+([A-ZÀ-Ú][^,.;()]{1,60}?)(?=\s*(?:[,.;(]|$|\s(?:de \d|até|das \d|entre|no per[ií]odo|a partir|durante|e no|e na|ou)\b))/.exec(frase);
+  return m ? m[1].trim() : null;
+}
+
+const PROPRIA = /prefeitura|c[âa]mara|munic[íi]pio|secretaria|governo|tribunal|universidade|instituto federal|hospital|consórcio|cons[óo]rcio|autarquia|funda[çc][ãa]o municipal/i;
+
+function identificarBanca(texto: string, site: string | null): { nome: string; site: string | null } | null {
   const alvo = normalizarTexto(`${site ?? ""} ${texto}`);
-  for (const [re, nome] of BANCAS) if (re.test(alvo)) return nome;
+  for (const [re, nome, siteBanca] of BANCAS) if (re.test(alvo)) return { nome, site: siteBanca };
   if (site) {
     const base = site.replace(/^www\./, "").split(".")[0];
-    if (base && !/gov|prefeitura|camara|^pm|tj|sei/.test(base)) return base.toUpperCase().length <= 6 ? base.toUpperCase() : base[0].toUpperCase() + base.slice(1);
+    if (base && !/gov|prefeitura|camara|^pm|tj|sei/.test(base)) return { nome: base.length <= 6 ? base.toUpperCase() : base[0].toUpperCase() + base.slice(1), site: null };
   }
   return null;
 }
@@ -231,6 +265,9 @@ export function lerFichaPci(html: string): Ficha {
   let taxa: number[] = [];
   let salarios: number[] = [];
   let site: string | null = null;
+  let organizadora: string | null = null;
+  let presencial = false;
+  let online = false;
   const horas = (f: string) => [...f.matchAll(/(\d{1,2})h(\d{2})?/g)].map((m) => `${m[1]}h${m[2] ?? ""}`);
 
   for (const f of frases) {
@@ -239,6 +276,11 @@ export function lerFichaPci(html: string): Ficha {
 
     const s = /\b(?:site|portal|endere[cç]o)\s+(?:eletr[oô]nico\s+)?(?:da\s+|do\s+)?(?:https?:\/\/)?((?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+)/i.exec(f);
     if (s && !site && /inscri/.test(n)) site = s[1].toLowerCase();
+    if (/inscri/.test(n) && !/isencao|reducao|deferiment|homolog/.test(n)) {
+      if (/presencia|pessoalmente|na sede|no setor|protocolo (?:geral|da prefeitura)|balcao/.test(n) && !/computador com acesso/.test(n)) presencial = true;
+      if (/internet|site|portal|online|on-line|eletronic|digital|plataforma/.test(n)) online = true;
+      organizadora ??= organizadoraCitada(f);
+    }
 
     if (/isencao|reducao/.test(n) && datas.length && !/inscricoes? (?:serao|poderao|devem|estarao|estao)/.test(n)) {
       cronograma.push({ tipo: "isencao", data: datas[0], ...(datas.length > 1 ? { fim: datas.at(-1) } : {}) });
@@ -299,12 +341,19 @@ export function lerFichaPci(html: string): Ficha {
   }
   cronograma.sort((a, b) => a.data.localeCompare(b.data));
 
+  // Banca: pelo site da inscrição, pelo nome citado ("site da Acesse Concursos") ou pelo texto todo
+  const propria = organizadora !== null && PROPRIA.test(organizadora);
+  const citada = organizadora && !propria && !/organizadora|banca|empresa|respons/i.test(organizadora) ? organizadora : null;
+  const banca = identificarBanca(`${citada ?? ""} ${texto}`, site) ?? (citada ? { nome: citada, site: null } : null);
   return {
     versao: VERSAO_FICHA,
     publicadoEm: publicado,
     noticia,
-    banca: identificarBanca(texto, site),
+    banca: banca?.nome ?? null,
+    siteBanca: banca?.site ?? null,
     siteInscricao: site,
+    inscricaoModo: presencial && online ? "online_e_presencial" : presencial ? "presencial" : online ? "online" : null,
+    organizacaoPropria: propria && !banca,
     cronograma,
     taxa: faixa(taxa.filter((v) => v < 1000)),
     salario: faixa(salarios.filter((v) => v >= 300)),

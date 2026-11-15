@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { coletarSeVencido } from "./banco.js";
+import { carregarIndice, coletarSeVencido, detalharConcursos } from "./banco.js";
+import { pesquisarFaltantes } from "./pesquisa.js";
 import { atenderChat, chatPendente, conferirChat, ouvirChat } from "./chat.js";
 import { executarMonitor } from "./check.js";
 import { db } from "./db.js";
@@ -118,6 +119,13 @@ async function main() {
   console.log(`Pedidos atendidos: ${await atenderPedidos()}`);
   console.log(`Monitores verificados: ${await verificarVencidos()}`);
   await coletarSeVencido(process.env.NOTARA_COLETAR_CONCURSOS === "1");
+  // Banco de concursos em segundo plano: fichas pendentes (ex.: extrator novo) e depois a pesquisa da IA
+  const completarBanco = () =>
+    carregarIndice()
+      .then(() => detalharConcursos())
+      .then(() => pesquisarFaltantes())
+      .catch((e) => console.warn("[Concursos] completar banco:", String(e)));
+  void completarBanco();
   // Até o fim da janela: atende pedidos do app e verifica quem vencer nesse meio-tempo
   let voltas = 0;
   const pararDeOuvir = ouvirPedidos();
@@ -132,6 +140,7 @@ async function main() {
     if (++voltas % 12 === 0) {
       await verificarVencidos(); // ~1 min
       await coletarSeVencido(); // banco de concursos: a cada 2 h
+      if (voltas % 120 === 0) void completarBanco(); // ~10 min: fichas novas + pesquisa da IA
       // Reserva caso um ouvinte tenha caído: confere as filas uma vez por minuto
       temPedido = true;
       conferirChat();

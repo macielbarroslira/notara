@@ -90,8 +90,21 @@ function CartaoConcurso({ l, hoje }: { l: LinhaConcurso; hoje: string }) {
           {l.pv && l.pv >= hoje && ` · prova ${dataCurta(l.pv)}`}
           {l.a.length > 0 && ` · ${l.a.map((a) => nomeArea.get(a) ?? a).join(", ")}`}
         </span>
-        <span className="inline-flex items-center gap-1 text-[13px] font-medium text-accent">
-          Ver ficha <Icone nome="seta" className="size-3.5" />
+        <span className="flex items-center gap-3">
+          {l.sb && (
+            <a
+              href={l.sb}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="relative z-[1] inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"
+              title={l.bn ? `Site da banca ${l.bn}` : "Site de inscrição"}
+            >
+              {l.bn ? "Banca" : "Inscrição"} <Icone nome="externo" className="size-3.5" />
+            </a>
+          )}
+          <span className="inline-flex items-center gap-1 text-[13px] font-medium text-accent">
+            Ver ficha <Icone nome="seta" className="size-3.5" />
+          </span>
         </span>
       </div>
     </article>

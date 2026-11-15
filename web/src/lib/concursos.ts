@@ -25,6 +25,8 @@ export interface LinhaConcurso {
   au?: number; // ausente da fonte desde
   bn?: string | null; // banca
   pv?: string | null; // próxima prova
+  sb?: string | null; // site da banca / inscrição
+  bni?: string | null; // banca achada pela IA
 }
 
 export interface FiltrosConcurso {

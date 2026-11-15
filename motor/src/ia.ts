@@ -459,6 +459,35 @@ async function whisper(audio: { dados: string; mime: string }) {
   }
 }
 
+// ---------- Pesquisa no Google (Gemini) ----------
+
+/**
+ * Pergunta ao Gemini com a ferramenta de pesquisa no Google ligada. Usada para completar o banco
+ * (ex.: banca e site de inscrição que a notícia não citou). Troca de modelo se um estiver no limite.
+ */
+export async function pesquisarNoGoogle(pergunta: string): Promise<{ texto: string; modelo: string; fontes: string[] } | null> {
+  for (const o of opcoes.filter((x) => x.tipo === "gemini")) {
+    if ((foraAte.get(o.modelo) ?? 0) > Date.now()) continue;
+    try {
+      const j = (await postar(`${o.base}/models/${o.modelo}:generateContent`, { "x-goog-api-key": o.chave }, {
+        contents: [{ role: "user", parts: [{ text: pergunta }] }],
+        tools: [{ google_search: {} }],
+      })) as {
+        candidates?: Array<{ content?: { parts?: Parte[] }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }>;
+      };
+      const c = j.candidates?.[0];
+      const texto = (c?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
+      const fontes = (c?.groundingMetadata?.groundingChunks ?? []).map((g) => g.web?.title ?? g.web?.uri ?? "").filter(Boolean);
+      if (texto) return { texto, modelo: o.modelo, fontes };
+    } catch (e) {
+      console.warn(`[IA busca] ${o.modelo}: ${(e as Error).message.slice(0, 160)}`);
+      if (e instanceof ErroDeModelo) foraAte.set(o.modelo, Date.now() + e.pausaMs);
+      else return null; // erro do pedido (ex.: pesquisa indisponível no plano): não insiste
+    }
+  }
+  return null;
+}
+
 // ---------- Início da rodada ----------
 
 /** Confere quais modelos existem (sem gastar cota) e mostra no log a ordem que será usada. */

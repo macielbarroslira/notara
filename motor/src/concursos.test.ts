@@ -138,3 +138,20 @@ test("ficha: datas em português e diferenças entre versões", () => {
   const nova = lerFichaPci(`<article id="noticia"><ul><li>Cargo A (5 vagas)</li></ul><p>As inscrições foram prorrogadas até o dia 15 de dezembro de 2026. A prova objetiva está prevista para 24 de janeiro de 2027.</p></article>`);
   assert.deepEqual(diferencasFicha(base, nova), ["Inscrições: 30/11/2026 → 15/12/2026", "Prova objetiva: 10/01/2027 → 24/01/2027", "Vagas: 2 → 5"]);
 });
+
+test("ficha: banca citada pelo nome, organização própria e inscrição presencial", () => {
+  const p = (t: string) => lerFichaPci(`<article id="noticia"><p>${t}</p></article>`);
+  const acesse = p("As inscrições devem ser feitas de 12 de novembro de 2026 até as 17h de 26 de novembro de 2026, pelo site da Acesse Concursos.");
+  assert.equal(acesse.banca, "Acesse Concursos");
+  assert.equal(acesse.siteBanca, null);
+  assert.equal(acesse.inscricaoModo, "online");
+  const avalia = p("As inscrições devem ser realizadas de 28 de setembro de 2026 a 6 de novembro de 2026, até as 23h59, no site do Instituto Avalia.");
+  assert.equal(avalia.banca, "Instituto Avalia");
+  assert.equal(avalia.siteBanca, "https://www.avalia.org.br");
+  const propria = p("As inscrições serão feitas pelo site da Prefeitura, das 9h de 9 de novembro de 2026 às 23h59 de 28 de novembro de 2026.");
+  assert.equal(propria.banca, null);
+  assert.equal(propria.organizacaoPropria, true);
+  const presencial = p("As inscrições serão presenciais de 13 de novembro de 2026 a 18 de novembro de 2026, no Setor de Recursos Humanos da Prefeitura.");
+  assert.equal(presencial.inscricaoModo, "presencial");
+  assert.equal(p("A prova objetiva será aplicada pela banca.").banca, null);
+});

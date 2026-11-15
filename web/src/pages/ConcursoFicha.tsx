@@ -16,7 +16,10 @@ interface DataCronograma {
 interface Ficha {
   publicadoEm: string | null;
   banca: string | null;
+  siteBanca?: string | null;
   siteInscricao: string | null;
+  inscricaoModo?: "online" | "presencial" | "online_e_presencial" | null;
+  organizacaoPropria?: boolean;
   taxa: { min: number; max: number } | null;
   salario: { min: number; max: number } | null;
   jornada: { min: number; max: number } | null;
@@ -44,7 +47,8 @@ interface Concurso {
   inscricaoFim: string | null;
   situacao: LinhaConcurso["si"];
   link: string;
-  links?: { fonte?: string; inscricao?: string };
+  links?: { fonte?: string; inscricao?: string; banca?: string; edital?: string };
+  iaPesquisa?: { banca: string | null; site: string | null; edital: string | null; modelo: string };
   ficha?: Ficha;
   cronograma?: DataCronograma[];
   banca?: string | null;
@@ -182,7 +186,8 @@ export function ConcursoFicha() {
         <p className="mt-1.5 text-[15px] text-muted">
           {local} · {c.esfera === "outra" ? "órgão público" : c.esfera}
           {c.tipo === "processo_seletivo" ? " · processo seletivo" : c.tipo === "residencia" ? " · residência" : " · concurso público"}
-          {(f?.banca ?? c.banca) && ` · banca ${f?.banca ?? c.banca}`}
+          {(f?.banca ?? c.banca ?? (c.iaPesquisa?.banca && c.iaPesquisa.banca !== "própria" ? c.iaPesquisa.banca : null)) &&
+            ` · banca ${f?.banca ?? c.banca ?? c.iaPesquisa?.banca}`}
         </p>
       </header>
 
@@ -268,6 +273,18 @@ export function ConcursoFicha() {
             ["Áreas", c.areas.map((a) => nomeArea.get(a) ?? a).join(", ")],
             ["Etapas", f?.etapas?.join(", ") ?? ""],
             ["Benefícios", f?.beneficios?.join(", ") ?? ""],
+            [
+              "Inscrição",
+              f?.inscricaoModo === "presencial"
+                ? "Presencial"
+                : f?.inscricaoModo === "online_e_presencial"
+                  ? "Pela internet ou presencial"
+                  : f?.organizacaoPropria
+                    ? "Pelo site do próprio órgão"
+                    : f?.inscricaoModo === "online"
+                      ? "Pela internet"
+                      : "",
+            ],
           ]
             .filter(([, v]) => v)
             .map(([k, v]) => (
@@ -281,6 +298,16 @@ export function ConcursoFicha() {
           {c.links?.inscricao && (
             <a href={c.links.inscricao} target="_blank" rel="noreferrer noopener" className="btn-primario inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-sm font-[550]">
               Site de inscrição <Icone nome="externo" className="size-4" />
+            </a>
+          )}
+          {c.links?.banca && c.links.banca !== c.links.inscricao && (
+            <a href={c.links.banca} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-card px-4 text-sm font-[550] text-ink shadow-ring hover:bg-panel">
+              Site da banca{f?.banca ? ` (${f.banca})` : ""} <Icone nome="externo" className="size-4" />
+            </a>
+          )}
+          {c.links?.edital && (
+            <a href={c.links.edital} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-card px-4 text-sm font-[550] text-ink shadow-ring hover:bg-panel">
+              Edital <Icone nome="documento" className="size-4" />
             </a>
           )}
           <a href={c.links?.fonte ?? c.link} target="_blank" rel="noreferrer noopener" className="inline-flex h-10 items-center gap-1.5 rounded-full bg-card px-4 text-sm font-[550] text-ink shadow-ring hover:bg-panel">
@@ -308,6 +335,11 @@ export function ConcursoFicha() {
       </Secao>
 
       <p className="pb-4 text-xs text-faint">
+        {c.iaPesquisa && (c.iaPesquisa.site || c.iaPesquisa.edital || c.iaPesquisa.banca) && (
+          <span className="mb-1 block">
+            🤖 Banca/site/edital completados por pesquisa da IA no Google ({c.iaPesquisa.modelo}) — confira antes de se inscrever.
+          </span>
+        )}
         Dados extraídos automaticamente da notícia do PCI Concursos{f?.publicadoEm ? ` (publicada em ${dataLonga(f.publicadoEm)})` : ""}. Confira sempre o edital oficial.
       </p>
     </div>
