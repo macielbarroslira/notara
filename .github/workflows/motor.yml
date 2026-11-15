@@ -1,0 +1,48 @@
+# Motor do Notara: verifica os sites e atende os pedidos do app (Testar, Escolher na página, Verificar agora).
+# Roda a cada ~10 minutos (o GitHub pode atrasar alguns minutos) e fica ~5 min atendendo a fila.
+name: Motor
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+# Uma rodada por vez; se a anterior ainda estiver rodando, a nova espera.
+concurrency:
+  group: motor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  motor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: motor/package-lock.json
+
+      - name: Instalar
+        working-directory: motor
+        run: npm ci --no-audit --no-fund
+
+      - name: Compilar
+        working-directory: motor
+        run: npm run build
+
+      - name: Rodar o motor
+        working-directory: motor
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          SMTP_URL: ${{ secrets.SMTP_URL }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          EMAIL_REMETENTE: "Notara <no-reply@notara.web.app>"
+          CHROME_PATH: /usr/bin/google-chrome
+          NOTARA_DURACAO_MS: "300000"
+        run: node lib/motor.js
