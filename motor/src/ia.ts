@@ -481,7 +481,7 @@ export async function pesquisarNaWeb(pergunta: string): Promise<{ texto: string;
           model: modelo,
           messages: [{ role: "user", content: pergunta }],
           // gpt-oss: ferramenta de pesquisa embutida do Groq; compound já pesquisa sozinho
-          ...(modelo.startsWith("openai/") ? { tools: [{ type: "browser_search" }], tool_choice: "required", reasoning_effort: "low" } : {}),
+          ...(modelo.startsWith("openai/") ? { tools: [{ type: "browser_search" }], tool_choice: "auto", reasoning_effort: "medium" } : {}),
         })) as { choices?: Array<{ message?: { content?: string; executed_tools?: Array<{ search_results?: { results?: Array<{ url?: string }> } }> } }> };
         const m = j.choices?.[0]?.message;
         const fontes = (m?.executed_tools ?? []).flatMap((t) => t.search_results?.results ?? []).map((r) => r.url ?? "").filter(Boolean);
@@ -505,7 +505,14 @@ export async function pesquisarNaWeb(pergunta: string): Promise<{ texto: string;
     const nome = nomes[i];
     if ((pesquisaForaAte.get(nome) ?? 0) > Date.now()) continue;
     try {
-      const r = await tentativas[i]();
+      let r;
+      try {
+        r = await tentativas[i]();
+      } catch (e) {
+        // O gpt-oss às vezes gera uma chamada de ferramenta mal formada: uma segunda tentativa costuma passar
+        if (!/parsing failed|failed_generation/i.test((e as Error).message)) throw e;
+        r = await tentativas[i]();
+      }
       if (r.texto) return r;
       console.warn(`[IA busca] ${nome}: resposta vazia`);
     } catch (e) {

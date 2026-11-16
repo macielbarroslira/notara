@@ -75,7 +75,7 @@ export async function pesquisarFaltantes() {
 
     for (const l of pendentes) {
       const ano = (l.if ?? hoje).slice(0, 4);
-      const pergunta = `Pesquise na web o concurso/processo seletivo abaixo e responda SOMENTE com um JSON.
+      const pergunta = `Use a ferramenta de pesquisa na web (browser_search) para encontrar o concurso/processo seletivo abaixo. Depois responda SOMENTE com um JSON.
 Órgão: ${l.o}
 Local: ${[l.c, l.u === "BR" ? "nacional" : l.u].filter(Boolean).join(" - ")}
 Cargos: ${l.cg}
