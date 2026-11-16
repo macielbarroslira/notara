@@ -473,12 +473,15 @@ const pesquisaForaAte = new Map<string, number>();
  */
 export async function pesquisarNaWeb(pergunta: string): Promise<{ texto: string; modelo: string; fontes: string[] } | null> {
   const tentativas: Array<() => Promise<{ texto: string; modelo: string; fontes: string[] }>> = [];
+  const MODELOS_GROQ = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "groq/compound", "groq/compound-mini"];
   if (CHAVE_GROQ)
-    for (const modelo of ["groq/compound", "groq/compound-mini"])
+    for (const modelo of MODELOS_GROQ)
       tentativas.push(async () => {
         const j = (await postar("https://api.groq.com/openai/v1/chat/completions", { authorization: `Bearer ${CHAVE_GROQ}` }, {
           model: modelo,
           messages: [{ role: "user", content: pergunta }],
+          // gpt-oss: ferramenta de pesquisa embutida do Groq; compound já pesquisa sozinho
+          ...(modelo.startsWith("openai/") ? { tools: [{ type: "browser_search" }], tool_choice: "required", reasoning_effort: "low" } : {}),
         })) as { choices?: Array<{ message?: { content?: string; executed_tools?: Array<{ search_results?: { results?: Array<{ url?: string }> } }> } }> };
         const m = j.choices?.[0]?.message;
         const fontes = (m?.executed_tools ?? []).flatMap((t) => t.search_results?.results ?? []).map((r) => r.url ?? "").filter(Boolean);
@@ -497,7 +500,7 @@ export async function pesquisarNaWeb(pergunta: string): Promise<{ texto: string;
         fontes: (c?.groundingMetadata?.groundingChunks ?? []).map((g) => g.web?.uri ?? "").filter(Boolean),
       };
     });
-  const nomes = [...(CHAVE_GROQ ? ["groq/compound", "groq/compound-mini"] : []), ...opcoes.filter((x) => x.tipo === "gemini").map((o) => o.modelo)];
+  const nomes = [...(CHAVE_GROQ ? MODELOS_GROQ.map((m) => `${m} (busca)`) : []), ...opcoes.filter((x) => x.tipo === "gemini").map((o) => o.modelo)];
   for (let i = 0; i < tentativas.length; i++) {
     const nome = nomes[i];
     if ((pesquisaForaAte.get(nome) ?? 0) > Date.now()) continue;
