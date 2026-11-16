@@ -461,33 +461,55 @@ async function whisper(audio: { dados: string; mime: string }) {
   }
 }
 
-// ---------- Pesquisa no Google (Gemini) ----------
+// ---------- Pesquisa na web ----------
+
+/** Modelo de pesquisa → até quando fica de fora (separado do chat: cota de pesquisa não afeta a conversa). */
+const pesquisaForaAte = new Map<string, number>();
 
 /**
- * Pergunta ao Gemini com a ferramenta de pesquisa no Google ligada. Usada para completar o banco
- * (ex.: banca e site de inscrição que a notícia não citou). Troca de modelo se um estiver no limite.
+ * Pesquisa na web para completar o banco (ex.: banca e site que a notícia não citou).
+ * 1º Groq "compound" (pesquisa na web incluída, plano grátis); 2º Gemini com a ferramenta de pesquisa
+ * no Google (no plano grátis costuma vir "cota esgotada"). Troca de modelo quando um falha.
  */
-export async function pesquisarNoGoogle(pergunta: string): Promise<{ texto: string; modelo: string; fontes: string[] } | null> {
-  for (const o of opcoes.filter((x) => x.tipo === "gemini")) {
-    if ((foraAte.get(o.modelo) ?? 0) > Date.now()) continue;
-    try {
+export async function pesquisarNaWeb(pergunta: string): Promise<{ texto: string; modelo: string; fontes: string[] } | null> {
+  const tentativas: Array<() => Promise<{ texto: string; modelo: string; fontes: string[] }>> = [];
+  if (CHAVE_GROQ)
+    for (const modelo of ["groq/compound", "groq/compound-mini"])
+      tentativas.push(async () => {
+        const j = (await postar("https://api.groq.com/openai/v1/chat/completions", { authorization: `Bearer ${CHAVE_GROQ}` }, {
+          model: modelo,
+          messages: [{ role: "user", content: pergunta }],
+        })) as { choices?: Array<{ message?: { content?: string; executed_tools?: Array<{ search_results?: { results?: Array<{ url?: string }> } }> } }> };
+        const m = j.choices?.[0]?.message;
+        const fontes = (m?.executed_tools ?? []).flatMap((t) => t.search_results?.results ?? []).map((r) => r.url ?? "").filter(Boolean);
+        return { texto: String(m?.content ?? "").trim(), modelo, fontes };
+      });
+  for (const o of opcoes.filter((x) => x.tipo === "gemini"))
+    tentativas.push(async () => {
       const j = (await postar(`${o.base}/models/${o.modelo}:generateContent`, { "x-goog-api-key": o.chave }, {
         contents: [{ role: "user", parts: [{ text: pergunta }] }],
         tools: [{ google_search: {} }],
-      })) as {
-        candidates?: Array<{ content?: { parts?: Parte[] }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }>;
+      })) as { candidates?: Array<{ content?: { parts?: Parte[] }; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }> };
+      const c = j.candidates?.[0];
+      return {
+        texto: (c?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim(),
+        modelo: o.modelo,
+        fontes: (c?.groundingMetadata?.groundingChunks ?? []).map((g) => g.web?.uri ?? "").filter(Boolean),
       };
-      const c = j.candidates?.[0] as
-        | { content?: { parts?: Parte[] }; finishReason?: string; groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string; title?: string } }> } }
-        | undefined;
-      const texto = (c?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim();
-      const fontes = (c?.groundingMetadata?.groundingChunks ?? []).map((g) => g.web?.title ?? g.web?.uri ?? "").filter(Boolean);
-      if (texto) return { texto, modelo: o.modelo, fontes };
-      console.warn(`[IA busca] ${o.modelo}: resposta vazia (${c?.finishReason ?? JSON.stringify(j).slice(0, 200)})`);
+    });
+  const nomes = [...(CHAVE_GROQ ? ["groq/compound", "groq/compound-mini"] : []), ...opcoes.filter((x) => x.tipo === "gemini").map((o) => o.modelo)];
+  for (let i = 0; i < tentativas.length; i++) {
+    const nome = nomes[i];
+    if ((pesquisaForaAte.get(nome) ?? 0) > Date.now()) continue;
+    try {
+      const r = await tentativas[i]();
+      if (r.texto) return r;
+      console.warn(`[IA busca] ${nome}: resposta vazia`);
     } catch (e) {
-      console.warn(`[IA busca] ${o.modelo}: ${(e as Error).message.slice(0, 160)}`);
-      if (e instanceof ErroDeModelo) foraAte.set(o.modelo, Date.now() + e.pausaMs);
-      else return null; // erro do pedido (ex.: pesquisa indisponível no plano): não insiste
+      const msg = (e as Error).message;
+      console.warn(`[IA busca] ${nome}: ${msg.slice(0, 140)}`);
+      // Cota de pesquisa esgotada ou indisponível: fica de fora por 6 h; outros erros, 30 min
+      pesquisaForaAte.set(nome, Date.now() + (/cota|quota|indispon|billing/i.test(msg) ? 6 * 3600_000 : 30 * 60_000));
     }
   }
   return null;

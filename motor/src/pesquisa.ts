@@ -3,7 +3,7 @@ import { indiceAtual, salvarIndice, type Linha } from "./banco.js";
 import { hojeBrasilia, situacaoAgora } from "./concursos.js";
 import { db } from "./db.js";
 import { fetchSeguro } from "./fetcher.js";
-import { iaAtiva, pesquisarNoGoogle } from "./ia.js";
+import { iaAtiva, pesquisarNaWeb } from "./ia.js";
 
 /**
  * A IA completa o banco pesquisando no Google o que a notícia não trouxe: banca organizadora e
@@ -75,7 +75,7 @@ export async function pesquisarFaltantes() {
 
     for (const l of pendentes) {
       const ano = (l.if ?? hoje).slice(0, 4);
-      const pergunta = `Pesquise no Google o concurso/processo seletivo abaixo e responda SOMENTE com um JSON.
+      const pergunta = `Pesquise na web o concurso/processo seletivo abaixo e responda SOMENTE com um JSON.
 Órgão: ${l.o}
 Local: ${[l.c, l.u === "BR" ? "nacional" : l.u].filter(Boolean).join(" - ")}
 Cargos: ${l.cg}
@@ -83,15 +83,12 @@ Inscrições até: ${l.if ?? "?"} (${ano})
 
 JSON: {"banca": "nome da banca organizadora, ou \\"propria\\" se o próprio órgão organiza", "site": "URL da página de inscrição ou do concurso no site da banca/órgão", "edital": "URL do edital em PDF, se encontrar"}
 Use null no que não encontrar com segurança. Não invente endereços e não use sites de notícias ou cursinhos.`;
-      const r = await pesquisarNoGoogle(pergunta);
+      const r = await pesquisarNaWeb(pergunta);
       feitos++;
       const atual = linhas.find((x) => x.i === l.i);
       if (!atual) continue;
+      if (!r) break; // pesquisa indisponível agora (cota): não marca o concurso; tenta na próxima rodada
       atual.ia = Date.now();
-      if (!r) {
-        if (feitos === 1) break; // pesquisa indisponível agora: tenta na próxima rodada
-        continue;
-      }
       const j = extrairJson(r.texto) ?? {};
       const banca = typeof j.banca === "string" && j.banca.trim() && !/^null$/i.test(j.banca) ? j.banca.trim().slice(0, 60) : null;
       const [site, edital] = await Promise.all([siteValido(j.site), siteValido(j.edital)]);
